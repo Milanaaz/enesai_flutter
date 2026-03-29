@@ -8,6 +8,9 @@ import 'package:dipl/features/courses/presentation/lesson_page.dart';
 import 'package:dipl/features/courses/presentation/lesson_summary_page.dart';
 import 'package:dipl/features/courses/presentation/module_test_page.dart';
 import 'package:dipl/features/courses/presentation/module_test_result_page.dart';
+import 'package:dipl/features/dictionary/presentation/dictionary_page.dart';
+import 'package:dipl/features/dictionary/presentation/models/dictionary_word.dart';
+import 'package:dipl/features/dictionary/presentation/word_review_page.dart';
 import 'package:dipl/features/home/presentation/home_page.dart';
 import 'package:dipl/features/personalization/presentation/goal_selection_page.dart';
 import 'package:dipl/features/personalization/presentation/language_selection_page.dart';
@@ -122,6 +125,19 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final String courseId = state.pathParameters['courseId'] ?? '';
         return CertificatePage(courseId: courseId);
+      },
+    ),
+    GoRoute(
+      path: '/dictionary',
+      builder: (context, state) => const DictionaryPage(),
+    ),
+    GoRoute(
+      path: '/dictionary/review',
+      builder: (context, state) {
+        final List<DictionaryWord> words = state.extra is List<DictionaryWord>
+            ? state.extra! as List<DictionaryWord>
+            : const <DictionaryWord>[];
+        return WordReviewPage(initialWords: words);
       },
     ),
     GoRoute(path: '/', builder: (context, state) => const HomePage()),

@@ -77,6 +77,9 @@ class MainBottomNav extends StatelessWidget {
       case 1:
         context.go('/courses');
         break;
+      case 2:
+        context.go('/dictionary');
+        break;
       default:
         break;
     }

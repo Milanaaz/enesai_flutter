@@ -66,7 +66,7 @@ class _RegisterPageState extends State<RegisterPage> {
             children: [
               AuthTextField(
                 label: 'Имя',
-                hint: 'Иван Иванов',
+                hint: 'Имя',
                 controller: _nameController,
                 prefixIcon: Icons.person_outline,
                 validator: (value) {
@@ -79,7 +79,7 @@ class _RegisterPageState extends State<RegisterPage> {
               const SizedBox(height: 14),
               AuthTextField(
                 label: 'Email',
-                hint: 'example@mail.com',
+                hint: 'example@gmail.com',
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 prefixIcon: Icons.mail_outline,
