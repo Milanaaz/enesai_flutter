@@ -10,6 +10,11 @@ abstract final class AppTheme {
         seedColor: AppColors.brandPrimary,
         brightness: Brightness.light,
       ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: AppColors.textPrimary,
+      ),
     );
   }
 }

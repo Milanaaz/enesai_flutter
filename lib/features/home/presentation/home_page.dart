@@ -1,4 +1,5 @@
 import 'package:dipl/app/app_colors.dart';
+import 'package:dipl/app/widgets/main_bottom_nav.dart';
 import 'package:dipl/services/auth_service.dart';
 import 'package:flutter/material.dart';
 
@@ -42,7 +43,7 @@ class _HomePageState extends State<HomePage> {
           },
         ),
       ),
-      bottomNavigationBar: const _HomeBottomNav(),
+      bottomNavigationBar: const MainBottomNav(currentIndex: 0),
     );
   }
 }
@@ -477,73 +478,6 @@ class _SectionCard extends StatelessWidget {
         border: Border.all(color: AppColors.divider),
       ),
       child: child,
-    );
-  }
-}
-
-class _HomeBottomNav extends StatelessWidget {
-  const _HomeBottomNav();
-
-  @override
-  Widget build(BuildContext context) {
-    return BottomNavigationBar(
-      type: BottomNavigationBarType.fixed,
-      currentIndex: 0,
-      elevation: 0,
-      backgroundColor: Colors.white,
-      selectedItemColor: AppColors.brandPrimary,
-      unselectedItemColor: const Color(0xFF9CA3AF),
-      selectedFontSize: 13,
-      unselectedFontSize: 13,
-      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
-      unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
-      iconSize: 22,
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home_outlined),
-          activeIcon: _NavIconBadge(icon: Icons.home_outlined),
-          label: 'Главная',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.menu_book_outlined),
-          activeIcon: _NavIconBadge(icon: Icons.menu_book_outlined),
-          label: 'Курсы',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.book_outlined),
-          activeIcon: _NavIconBadge(icon: Icons.book_outlined),
-          label: 'Словарь',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.emoji_events_outlined),
-          activeIcon: _NavIconBadge(icon: Icons.emoji_events_outlined),
-          label: 'Игры',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.person_outline),
-          activeIcon: _NavIconBadge(icon: Icons.person_outline),
-          label: 'Профиль',
-        ),
-      ],
-    );
-  }
-}
-
-class _NavIconBadge extends StatelessWidget {
-  const _NavIconBadge({required this.icon});
-
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: AppColors.brandPrimary,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Icon(icon, color: Colors.white, size: 22),
     );
   }
 }

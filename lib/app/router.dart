@@ -1,6 +1,13 @@
 import 'package:dipl/features/auth/presentation/forgot_password_page.dart';
 import 'package:dipl/features/auth/presentation/login_page.dart';
 import 'package:dipl/features/auth/presentation/register_page.dart';
+import 'package:dipl/features/courses/presentation/certificate_page.dart';
+import 'package:dipl/features/courses/presentation/course_catalog_page.dart';
+import 'package:dipl/features/courses/presentation/course_details_page.dart';
+import 'package:dipl/features/courses/presentation/lesson_page.dart';
+import 'package:dipl/features/courses/presentation/lesson_summary_page.dart';
+import 'package:dipl/features/courses/presentation/module_test_page.dart';
+import 'package:dipl/features/courses/presentation/module_test_result_page.dart';
 import 'package:dipl/features/home/presentation/home_page.dart';
 import 'package:dipl/features/personalization/presentation/goal_selection_page.dart';
 import 'package:dipl/features/personalization/presentation/language_selection_page.dart';
@@ -65,6 +72,56 @@ final GoRouter appRouter = GoRouter(
           languageCode: languageCode,
           goalCode: goalCode,
         );
+      },
+    ),
+    GoRoute(
+      path: '/courses',
+      builder: (context, state) => const CourseCatalogPage(),
+    ),
+    GoRoute(
+      path: '/courses/:courseId',
+      builder: (context, state) {
+        final String courseId = state.pathParameters['courseId'] ?? '';
+        return CourseDetailsPage(courseId: courseId);
+      },
+    ),
+    GoRoute(
+      path: '/courses/:courseId/lesson',
+      builder: (context, state) {
+        final String courseId = state.pathParameters['courseId'] ?? '';
+        return LessonPage(courseId: courseId);
+      },
+    ),
+    GoRoute(
+      path: '/courses/:courseId/lesson/summary',
+      builder: (context, state) {
+        final String courseId = state.pathParameters['courseId'] ?? '';
+        final int score =
+            int.tryParse(state.uri.queryParameters['score'] ?? '') ?? 0;
+        return LessonSummaryPage(courseId: courseId, score: score);
+      },
+    ),
+    GoRoute(
+      path: '/courses/:courseId/module-test',
+      builder: (context, state) {
+        final String courseId = state.pathParameters['courseId'] ?? '';
+        return ModuleTestPage(courseId: courseId);
+      },
+    ),
+    GoRoute(
+      path: '/courses/:courseId/module-test/result',
+      builder: (context, state) {
+        final String courseId = state.pathParameters['courseId'] ?? '';
+        final int score =
+            int.tryParse(state.uri.queryParameters['score'] ?? '') ?? 0;
+        return ModuleTestResultPage(courseId: courseId, score: score);
+      },
+    ),
+    GoRoute(
+      path: '/courses/:courseId/certificate',
+      builder: (context, state) {
+        final String courseId = state.pathParameters['courseId'] ?? '';
+        return CertificatePage(courseId: courseId);
       },
     ),
     GoRoute(path: '/', builder: (context, state) => const HomePage()),
