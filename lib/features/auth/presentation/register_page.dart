@@ -44,7 +44,7 @@ class _RegisterPageState extends State<RegisterPage> {
       );
       return;
     }
-    context.go('/');
+    context.go('/onboarding/language');
   }
 
   void _goToLogin() => context.go('/login');
