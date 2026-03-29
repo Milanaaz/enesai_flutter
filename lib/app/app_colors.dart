@@ -5,6 +5,9 @@ abstract final class AppColors {
   static const Color brandPrimaryDark = Color(0xFF6D28D9);
   static const Color splashBackground = brandPrimary;
   static const Color surface = Colors.white;
+  static const Color divider = Color(0xFFE5E7EB);
+  static const Color inputBackground = Color(0xFFF3F4F6);
+  static const Color inputBorder = Color(0xFFE5E7EB);
   static const Color textPrimary = Color(0xFF111827);
   static const Color textSecondary = Color(0xFF6B7280);
   static const Color indicatorInactive = Color(0xFFD1D5DB);

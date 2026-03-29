@@ -60,11 +60,11 @@ class _WelcomePageState extends State<WelcomePage> {
       return;
     }
     if (!mounted) return;
-    context.go('/');
+    context.go('/register');
   }
 
   void _onLoginPressed() {
-    context.go('/');
+    context.go('/login');
   }
 
   @override
