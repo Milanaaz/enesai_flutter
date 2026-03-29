@@ -39,7 +39,7 @@ class AuthPageShell extends StatelessWidget {
               Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 40,
+                  fontSize: 30,
                   height: 1.1,
                   fontWeight: FontWeight.w800,
                   color: AppColors.textPrimary,

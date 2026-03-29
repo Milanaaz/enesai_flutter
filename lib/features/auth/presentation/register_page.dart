@@ -3,6 +3,7 @@ import 'package:dipl/features/auth/presentation/widgets/auth_divider.dart';
 import 'package:dipl/features/auth/presentation/widgets/auth_page_shell.dart';
 import 'package:dipl/features/auth/presentation/widgets/auth_social_buttons.dart';
 import 'package:dipl/features/auth/presentation/widgets/auth_text_field.dart';
+import 'package:dipl/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -31,9 +32,10 @@ class _RegisterPageState extends State<RegisterPage> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final bool isValid = _formKey.currentState?.validate() ?? false;
     if (!isValid) return;
+
     if (!_acceptedTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -44,6 +46,9 @@ class _RegisterPageState extends State<RegisterPage> {
       );
       return;
     }
+
+    await AuthService.instance.saveRegisteredName(_nameController.text);
+    if (!mounted) return;
     context.go('/onboarding/language');
   }
 
