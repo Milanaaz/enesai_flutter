@@ -1,6 +1,7 @@
 import 'package:dipl/features/auth/presentation/forgot_password_page.dart';
 import 'package:dipl/features/auth/presentation/login_page.dart';
 import 'package:dipl/features/auth/presentation/register_page.dart';
+import 'package:dipl/features/chat/presentation/chat_page.dart';
 import 'package:dipl/features/courses/presentation/certificate_page.dart';
 import 'package:dipl/features/courses/presentation/course_catalog_page.dart';
 import 'package:dipl/features/courses/presentation/course_details_page.dart';
@@ -15,6 +16,7 @@ import 'package:dipl/features/home/presentation/home_page.dart';
 import 'package:dipl/features/personalization/presentation/goal_selection_page.dart';
 import 'package:dipl/features/personalization/presentation/language_selection_page.dart';
 import 'package:dipl/features/personalization/presentation/level_selection_page.dart';
+import 'package:dipl/features/profile/presentation/profile_page.dart';
 import 'package:dipl/features/splash/presentation/splash_page.dart';
 import 'package:dipl/features/welcome/presentation/welcome_page.dart';
 import 'package:go_router/go_router.dart';
@@ -81,6 +83,7 @@ final GoRouter appRouter = GoRouter(
       path: '/courses',
       builder: (context, state) => const CourseCatalogPage(),
     ),
+    GoRoute(path: '/chat', builder: (context, state) => const ChatPage()),
     GoRoute(
       path: '/courses/:courseId',
       builder: (context, state) {
@@ -140,6 +143,7 @@ final GoRouter appRouter = GoRouter(
         return WordReviewPage(initialWords: words);
       },
     ),
+    GoRoute(path: '/profile', builder: (context, state) => const ProfilePage()),
     GoRoute(path: '/', builder: (context, state) => const HomePage()),
   ],
 );

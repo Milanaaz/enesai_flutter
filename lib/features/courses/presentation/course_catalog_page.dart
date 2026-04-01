@@ -49,7 +49,7 @@ class _CourseCatalogPageState extends State<CourseCatalogPage>
         .where(_matchesFilter)
         .toList();
     return Scaffold(
-      appBar: AppBar(title: const Text('Курсы'), centerTitle: true),
+      appBar: AppBar(title: const Text('Курсы'), centerTitle: false),
       body: SafeArea(
         child: Column(
           children: [

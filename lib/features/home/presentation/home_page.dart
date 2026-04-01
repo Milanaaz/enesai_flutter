@@ -2,6 +2,7 @@ import 'package:dipl/app/app_colors.dart';
 import 'package:dipl/app/widgets/main_bottom_nav.dart';
 import 'package:dipl/services/auth_service.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -90,14 +91,18 @@ class _HomeHeader extends StatelessWidget {
                   ],
                 ),
               ),
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(999),
+              InkWell(
+                onTap: () => context.push('/profile'),
+                borderRadius: BorderRadius.circular(999),
+                child: Ink(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Icon(Icons.person_outline, color: Colors.white),
                 ),
-                child: const Icon(Icons.person_outline, color: Colors.white),
               ),
             ],
           ),

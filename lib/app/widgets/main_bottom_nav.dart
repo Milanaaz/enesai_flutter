@@ -39,27 +39,22 @@ class MainBottomNav extends StatelessWidget {
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
             activeIcon: _ActiveNavIcon(icon: Icons.home_outlined),
-            label: 'Главная',
+            label: '\u0413\u043b\u0430\u0432\u043d\u0430\u044f',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.menu_book_outlined),
             activeIcon: _ActiveNavIcon(icon: Icons.menu_book_outlined),
-            label: 'Курсы',
+            label: '\u041a\u0443\u0440\u0441\u044b',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.book_outlined),
             activeIcon: _ActiveNavIcon(icon: Icons.book_outlined),
-            label: 'Словарь',
+            label: '\u0421\u043b\u043e\u0432\u0430\u0440\u044c',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.emoji_events_outlined),
-            activeIcon: _ActiveNavIcon(icon: Icons.emoji_events_outlined),
-            label: 'Игры',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: _ActiveNavIcon(icon: Icons.person_outline),
-            label: 'Профиль',
+            icon: Icon(Icons.chat_bubble_outline),
+            activeIcon: _ActiveNavIcon(icon: Icons.chat_bubble_outline),
+            label: '\u0427\u0430\u0442',
           ),
         ],
       ),
@@ -79,6 +74,9 @@ class MainBottomNav extends StatelessWidget {
         break;
       case 2:
         context.go('/dictionary');
+        break;
+      case 3:
+        context.go('/chat');
         break;
       default:
         break;
