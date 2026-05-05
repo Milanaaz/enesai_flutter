@@ -23,11 +23,15 @@ class AuthService {
   static const String _refreshTokenKey = 'auth_refresh_token';
   static const String _userNameKey = 'auth_user_name';
   static const String _userEmailKey = 'auth_user_email';
+  static const String _userLevelKey = 'auth_user_level';
+  static const String _userGoalTypeKey = 'auth_user_goal_type';
 
   final Dio _dio;
 
   String? _cachedUserName;
   String? _cachedUserEmail;
+  String? _cachedUserLevel;
+  String? _cachedUserGoalType;
 
   Future<AuthUser> register({
     required String email,
@@ -104,6 +108,42 @@ class AuthService {
     }
   }
 
+  Future<void> updateOnboardingProfile({
+    required String languageLevel,
+    required String goalType,
+  }) async {
+    final String normalizedLevel = languageLevel.trim().toUpperCase();
+    final String normalizedGoalType = goalType.trim().toUpperCase();
+    if (normalizedLevel.isEmpty || normalizedGoalType.isEmpty) {
+      throw const AuthException('Некорректные данные уровня или цели');
+    }
+
+    final String? accessToken = await getAccessToken();
+    if ((accessToken ?? '').trim().isEmpty) {
+      throw const AuthException('Требуется вход в аккаунт');
+    }
+
+    try {
+      await _postWithRetry(
+        '/api/v1/users/me',
+        <String, dynamic>{
+          'languageLevel': normalizedLevel,
+          'goalType': normalizedGoalType,
+        },
+        options: Options(
+          method: 'PATCH',
+          headers: <String, dynamic>{
+            'Authorization': 'Bearer ${accessToken!.trim()}',
+          },
+        ),
+      );
+      await saveSelectedLevel(normalizedLevel);
+      await saveGoalType(normalizedGoalType);
+    } on DioException catch (error) {
+      throw AuthException(_extractErrorMessage(error));
+    }
+  }
+
   Future<void> refreshToken() async {
     final SharedPreferences preferences = await SharedPreferences.getInstance();
     final String? refreshToken = preferences.getString(_refreshTokenKey);
@@ -128,8 +168,12 @@ class AuthService {
     await preferences.remove(_refreshTokenKey);
     await preferences.remove(_userNameKey);
     await preferences.remove(_userEmailKey);
+    await preferences.remove(_userLevelKey);
+    await preferences.remove(_userGoalTypeKey);
     _cachedUserName = null;
     _cachedUserEmail = null;
+    _cachedUserLevel = null;
+    _cachedUserGoalType = null;
   }
 
   Future<void> saveRegisteredName(String name) async {
@@ -163,6 +207,36 @@ class AuthService {
     return _cachedUserEmail;
   }
 
+  Future<void> saveSelectedLevel(String level) async {
+    final String normalizedLevel = level.trim().toUpperCase();
+    if (normalizedLevel.isEmpty) return;
+    _cachedUserLevel = normalizedLevel;
+    final SharedPreferences preferences = await SharedPreferences.getInstance();
+    await preferences.setString(_userLevelKey, normalizedLevel);
+  }
+
+  Future<String?> getSelectedLevel() async {
+    if (_cachedUserLevel != null) return _cachedUserLevel;
+    final SharedPreferences preferences = await SharedPreferences.getInstance();
+    _cachedUserLevel = preferences.getString(_userLevelKey);
+    return _cachedUserLevel;
+  }
+
+  Future<void> saveGoalType(String goalType) async {
+    final String normalizedGoalType = goalType.trim().toUpperCase();
+    if (normalizedGoalType.isEmpty) return;
+    _cachedUserGoalType = normalizedGoalType;
+    final SharedPreferences preferences = await SharedPreferences.getInstance();
+    await preferences.setString(_userGoalTypeKey, normalizedGoalType);
+  }
+
+  Future<String?> getGoalType() async {
+    if (_cachedUserGoalType != null) return _cachedUserGoalType;
+    final SharedPreferences preferences = await SharedPreferences.getInstance();
+    _cachedUserGoalType = preferences.getString(_userGoalTypeKey);
+    return _cachedUserGoalType;
+  }
+
   Future<String?> getAccessToken() async {
     final SharedPreferences preferences = await SharedPreferences.getInstance();
     return preferences.getString(_accessTokenKey);
@@ -187,6 +261,14 @@ class AuthService {
     final String lastName = (userMap['lastName'] ?? '').toString().trim();
     final String fullName = _normalizeNameFromParts(firstName, lastName);
     final String email = (userMap['email'] ?? '').toString().trim();
+    final String languageLevel = (userMap['languageLevel'] ?? '')
+        .toString()
+        .trim()
+        .toUpperCase();
+    final String goalType = (userMap['goalType'] ?? '')
+        .toString()
+        .trim()
+        .toUpperCase();
 
     final SharedPreferences preferences = await SharedPreferences.getInstance();
     if (accessToken.isNotEmpty) {
@@ -202,6 +284,14 @@ class AuthService {
     if (email.isNotEmpty) {
       _cachedUserEmail = email;
       await preferences.setString(_userEmailKey, email);
+    }
+    if (languageLevel.isNotEmpty) {
+      _cachedUserLevel = languageLevel;
+      await preferences.setString(_userLevelKey, languageLevel);
+    }
+    if (goalType.isNotEmpty) {
+      _cachedUserGoalType = goalType;
+      await preferences.setString(_userGoalTypeKey, goalType);
     }
 
     return AuthUser(

@@ -62,7 +62,7 @@ class _LoginPageState extends State<LoginPage> {
             children: [
               AuthTextField(
                 label: 'Email',
-                hint: 'example@mail.com',
+                hint: 'example@gmail.com',
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,

@@ -12,7 +12,7 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  late final Future<String?> _userNameFuture;
+  Future<_ProfileInfo>? _profileInfoFuture;
   bool _notificationsEnabled = true;
   bool _soundEnabled = true;
   String _interfaceLanguage = '\u0420\u0443\u0441\u0441\u043a\u0438\u0439';
@@ -22,7 +22,23 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
-    _userNameFuture = AuthService.instance.getRegisteredName();
+    _profileInfoFuture = _loadProfileInfo();
+  }
+
+  Future<_ProfileInfo> _loadProfileInfo() async {
+    final String? rawName = await AuthService.instance.getRegisteredName();
+    final String? rawEmail = await AuthService.instance.getRegisteredEmail();
+    final String? rawLevel = await AuthService.instance.getSelectedLevel();
+    final String userName = (rawName ?? '').trim().isNotEmpty
+        ? rawName!.trim()
+        : 'Milana';
+    final String email = (rawEmail ?? '').trim().isNotEmpty
+        ? rawEmail!.trim()
+        : 'example@gmail.com';
+    final String level = (rawLevel ?? '').trim().isNotEmpty
+        ? rawLevel!.trim()
+        : 'A1';
+    return _ProfileInfo(userName: userName, email: email, level: level);
   }
 
   @override
@@ -30,21 +46,25 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F7FB),
       body: SafeArea(
-        child: FutureBuilder<String?>(
-          future: _userNameFuture,
-          builder: (BuildContext context, AsyncSnapshot<String?> snapshot) {
-            final String userName = (snapshot.data ?? '').trim().isNotEmpty
-                ? snapshot.data!.trim()
-                : 'Milana';
-            final String email = '${userName.toLowerCase()}@example.com';
+        child: FutureBuilder<_ProfileInfo>(
+          future: _profileInfoFuture ??= _loadProfileInfo(),
+          builder:
+              (BuildContext context, AsyncSnapshot<_ProfileInfo> snapshot) {
+            final _ProfileInfo info =
+                snapshot.data ??
+                const _ProfileInfo(
+                  userName: 'Milana',
+                  email: 'example@gmail.com',
+                  level: 'A1',
+                );
 
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
               children: [
                 _ProfileHeader(
-                  userName: userName,
-                  email: email,
-                  level: 'A2',
+                  userName: info.userName,
+                  email: info.email,
+                  level: info.level,
                   points: '1 245',
                   learningDays: '12',
                 ),
@@ -151,7 +171,7 @@ class _ProfilePageState extends State<ProfilePage> {
           },
         ),
       ),
-      bottomNavigationBar: const MainBottomNav(currentIndex: 0),
+      bottomNavigationBar: const MainBottomNav(currentIndex: 4),
     );
   }
 
@@ -448,6 +468,18 @@ class _ProfilePageState extends State<ProfilePage> {
     if (!mounted) return;
     context.go('/login');
   }
+}
+
+class _ProfileInfo {
+  const _ProfileInfo({
+    required this.userName,
+    required this.email,
+    required this.level,
+  });
+
+  final String userName;
+  final String email;
+  final String level;
 }
 
 class _ProfileHeader extends StatelessWidget {
@@ -855,5 +887,6 @@ class _SettingsSwitchTile extends StatelessWidget {
     );
   }
 }
+
 
 

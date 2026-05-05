@@ -12,12 +12,23 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  late final Future<String?> _userNameFuture;
+  Future<_HomeHeaderInfo>? _headerInfoFuture;
 
   @override
   void initState() {
     super.initState();
-    _userNameFuture = AuthService.instance.getRegisteredName();
+    _headerInfoFuture = _loadHeaderInfo();
+  }
+
+  Future<_HomeHeaderInfo> _loadHeaderInfo() async {
+    final String? rawName = await AuthService.instance.getRegisteredName();
+    final String? rawLevel = await AuthService.instance.getSelectedLevel();
+    return _HomeHeaderInfo(
+      userName: (rawName ?? '').trim().isNotEmpty
+          ? rawName!.trim()
+          : 'Пользователь',
+      level: (rawLevel ?? '').trim().isNotEmpty ? rawLevel!.trim() : 'A1',
+    );
   }
 
   @override
@@ -25,16 +36,21 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F7FB),
       body: SafeArea(
-        child: FutureBuilder<String?>(
-          future: _userNameFuture,
+        child: FutureBuilder<_HomeHeaderInfo>(
+          future: _headerInfoFuture ??= _loadHeaderInfo(),
           builder: (context, snapshot) {
-            final String userName = (snapshot.data ?? '').trim().isNotEmpty
-                ? snapshot.data!.trim()
-                : 'Пользователь';
+            final _HomeHeaderInfo info =
+                snapshot.data ??
+                const _HomeHeaderInfo(userName: 'Пользователь', level: 'A1');
 
             return CustomScrollView(
               slivers: [
-                SliverToBoxAdapter(child: _HomeHeader(userName: userName)),
+                SliverToBoxAdapter(
+                  child: _HomeHeader(
+                    userName: info.userName,
+                    level: info.level,
+                  ),
+                ),
                 const SliverToBoxAdapter(child: _CurrentCourseCard()),
                 const SliverToBoxAdapter(child: _DailyGoalCard()),
                 const SliverToBoxAdapter(child: _RecommendedSection()),
@@ -50,9 +66,10 @@ class _HomePageState extends State<HomePage> {
 }
 
 class _HomeHeader extends StatelessWidget {
-  const _HomeHeader({required this.userName});
+  const _HomeHeader({required this.userName, required this.level});
 
   final String userName;
+  final String level;
 
   @override
   Widget build(BuildContext context) {
@@ -107,12 +124,12 @@ class _HomeHeader extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          const Row(
+          Row(
             children: [
               Expanded(
                 child: _HeaderMetric(
                   label: 'Уровень',
-                  value: 'A2',
+                  value: level,
                   icon: Icons.track_changes_outlined,
                 ),
               ),
@@ -138,6 +155,13 @@ class _HomeHeader extends StatelessWidget {
       ),
     );
   }
+}
+
+class _HomeHeaderInfo {
+  const _HomeHeaderInfo({required this.userName, required this.level});
+
+  final String userName;
+  final String level;
 }
 
 class _HeaderMetric extends StatelessWidget {

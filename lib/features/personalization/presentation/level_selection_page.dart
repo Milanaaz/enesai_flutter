@@ -1,5 +1,6 @@
 import 'package:dipl/app/app_colors.dart';
 import 'package:dipl/features/personalization/presentation/widgets/personalization_option_tile.dart';
+import 'package:dipl/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -21,14 +22,49 @@ class _LevelSelectionPageState extends State<LevelSelectionPage> {
   _LevelMode? _levelMode;
   String? _manualLevel;
 
+  @override
+  void initState() {
+    super.initState();
+    _restoreSavedLevel();
+  }
+
+  Future<void> _restoreSavedLevel() async {
+    final String? savedLevel = await AuthService.instance.getSelectedLevel();
+    if (!mounted) return;
+    final String normalized = (savedLevel ?? '').trim().toUpperCase();
+    if (normalized.isEmpty) return;
+    if (!<String>['A1', 'A2', 'B1', 'B2'].contains(normalized)) return;
+    setState(() {
+      _levelMode = _LevelMode.manual;
+      _manualLevel = normalized;
+    });
+  }
+
   bool get _canContinue {
     if (_levelMode == _LevelMode.test) return true;
     if (_levelMode == _LevelMode.manual && _manualLevel != null) return true;
     return false;
   }
 
-  void _continue() {
+  Future<void> _continue() async {
     if (!_canContinue) return;
+    final String levelToStore = _levelMode == _LevelMode.manual
+        ? (_manualLevel ?? '')
+        : 'A1';
+    final String goalType = _goalTypeFromCode(widget.goalCode);
+    try {
+      await AuthService.instance.updateOnboardingProfile(
+        languageLevel: levelToStore,
+        goalType: goalType,
+      );
+    } on AuthException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+      return;
+    }
+    if (!mounted) return;
     context.go('/');
   }
 
@@ -206,5 +242,19 @@ String _goalTitle(String code) {
       return 'Деловой';
     default:
       return 'Выучить кыргызский';
+  }
+}
+
+String _goalTypeFromCode(String code) {
+  switch (code) {
+    case 'ort':
+      return 'PREPARE_ORT';
+    case 'speaking':
+      return 'SPEAKING';
+    case 'business':
+      return 'BUSINESS';
+    case 'learn':
+    default:
+      return 'LEARN_KYRGYZ';
   }
 }

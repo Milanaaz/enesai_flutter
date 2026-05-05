@@ -81,9 +81,16 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/courses',
-      builder: (context, state) => const CourseCatalogPage(),
+      pageBuilder: (context, state) => const NoTransitionPage<void>(
+        child: CourseCatalogPage(),
+      ),
     ),
-    GoRoute(path: '/chat', builder: (context, state) => const ChatPage()),
+    GoRoute(
+      path: '/chat',
+      pageBuilder: (context, state) => const NoTransitionPage<void>(
+        child: ChatPage(),
+      ),
+    ),
     GoRoute(
       path: '/courses/:courseId',
       builder: (context, state) {
@@ -132,7 +139,9 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/dictionary',
-      builder: (context, state) => const DictionaryPage(),
+      pageBuilder: (context, state) => const NoTransitionPage<void>(
+        child: DictionaryPage(),
+      ),
     ),
     GoRoute(
       path: '/dictionary/review',
@@ -143,7 +152,17 @@ final GoRouter appRouter = GoRouter(
         return WordReviewPage(initialWords: words);
       },
     ),
-    GoRoute(path: '/profile', builder: (context, state) => const ProfilePage()),
-    GoRoute(path: '/', builder: (context, state) => const HomePage()),
+    GoRoute(
+      path: '/profile',
+      pageBuilder: (context, state) => const NoTransitionPage<void>(
+        child: ProfilePage(),
+      ),
+    ),
+    GoRoute(
+      path: '/',
+      pageBuilder: (context, state) => const NoTransitionPage<void>(
+        child: HomePage(),
+      ),
+    ),
   ],
 );

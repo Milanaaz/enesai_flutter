@@ -21,8 +21,8 @@ class MainBottomNav extends StatelessWidget {
         backgroundColor: Colors.white,
         selectedItemColor: AppColors.brandPrimary,
         unselectedItemColor: const Color(0xFF98A2B3),
-        selectedFontSize: 24,
-        unselectedFontSize: 24,
+        selectedFontSize: 12,
+        unselectedFontSize: 12,
         selectedLabelStyle: const TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
@@ -37,24 +37,29 @@ class MainBottomNav extends StatelessWidget {
         onTap: (int index) => _onTap(context, index),
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
+            icon: _InactiveNavIcon(icon: Icons.home_outlined),
             activeIcon: _ActiveNavIcon(icon: Icons.home_outlined),
             label: '\u0413\u043b\u0430\u0432\u043d\u0430\u044f',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.menu_book_outlined),
+            icon: _InactiveNavIcon(icon: Icons.menu_book_outlined),
             activeIcon: _ActiveNavIcon(icon: Icons.menu_book_outlined),
             label: '\u041a\u0443\u0440\u0441\u044b',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.book_outlined),
+            icon: _InactiveNavIcon(icon: Icons.book_outlined),
             activeIcon: _ActiveNavIcon(icon: Icons.book_outlined),
             label: '\u0421\u043b\u043e\u0432\u0430\u0440\u044c',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline),
+            icon: _InactiveNavIcon(icon: Icons.chat_bubble_outline),
             activeIcon: _ActiveNavIcon(icon: Icons.chat_bubble_outline),
             label: '\u0427\u0430\u0442',
+          ),
+          BottomNavigationBarItem(
+            icon: _InactiveNavIcon(icon: Icons.person_outline),
+            activeIcon: _ActiveNavIcon(icon: Icons.person_outline),
+            label: '\u041f\u0440\u043e\u0444\u0438\u043b\u044c',
           ),
         ],
       ),
@@ -78,9 +83,29 @@ class MainBottomNav extends StatelessWidget {
       case 3:
         context.go('/chat');
         break;
+      case 4:
+        context.go('/profile');
+        break;
       default:
         break;
     }
+  }
+}
+
+class _InactiveNavIcon extends StatelessWidget {
+  const _InactiveNavIcon({required this.icon});
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 40,
+      height: 40,
+      child: Center(
+        child: Icon(icon, size: 22),
+      ),
+    );
   }
 }
 
