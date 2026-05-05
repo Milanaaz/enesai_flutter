@@ -1,7 +1,8 @@
-import 'package:dipl/app/app_colors.dart';
+﻿import 'package:dipl/app/app_colors.dart';
 import 'package:dipl/app/widgets/main_bottom_nav.dart';
 import 'package:dipl/services/auth_service.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -14,8 +15,8 @@ class _ProfilePageState extends State<ProfilePage> {
   late final Future<String?> _userNameFuture;
   bool _notificationsEnabled = true;
   bool _soundEnabled = true;
-  String _interfaceLanguage = 'Русский';
-  String _learningLanguage = 'Кыргызский';
+  String _interfaceLanguage = '\u0420\u0443\u0441\u0441\u043a\u0438\u0439';
+  String _learningLanguage = '\u041a\u044b\u0440\u0433\u044b\u0437\u0441\u043a\u0438\u0439';
   TimeOfDay _reminderTime = const TimeOfDay(hour: 20, minute: 0);
 
   @override
@@ -132,8 +133,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         icon: Icons.lock_outline,
                         title: 'Сменить пароль',
                         value: 'Изменить',
-                        onTap: () =>
-                            _showInfo('Экран смены пароля пока не подключен'),
+                        onTap: _openChangePasswordDialog,
                       ),
                       const Divider(height: 20, color: AppColors.divider),
                       _SettingsValueTile(
@@ -141,8 +141,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         title: 'Выйти из аккаунта',
                         value: 'Выйти',
                         isDestructive: true,
-                        onTap: () =>
-                            _showInfo('Выход из аккаунта пока не подключен'),
+                        onTap: _logout,
                       ),
                     ],
                   ),
@@ -159,7 +158,11 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _changeInterfaceLanguage() async {
     final String? selected = await _pickFromOptions(
       title: 'Язык интерфейса',
-      options: const ['Русский', 'Кыргызча', 'English'],
+      options: const [
+        '\u0420\u0443\u0441\u0441\u043a\u0438\u0439',
+        '\u041a\u044b\u0440\u0433\u044b\u0437\u0447\u0430',
+        'English',
+      ],
       currentValue: _interfaceLanguage,
     );
     if (selected == null) {
@@ -171,7 +174,11 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _changeLearningLanguage() async {
     final String? selected = await _pickFromOptions(
       title: 'Язык обучения',
-      options: const ['Кыргызский', 'Русский', 'English'],
+      options: const [
+        '\u041a\u044b\u0440\u0433\u044b\u0437\u0441\u043a\u0438\u0439',
+        '\u0420\u0443\u0441\u0441\u043a\u0438\u0439',
+        'English',
+      ],
       currentValue: _learningLanguage,
     );
     if (selected == null) {
@@ -242,6 +249,204 @@ class _ProfilePageState extends State<ProfilePage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(text), duration: const Duration(seconds: 2)),
     );
+  }
+
+  Future<void> _openChangePasswordDialog() async {
+    final TextEditingController currentPasswordController =
+        TextEditingController();
+    final TextEditingController passwordController = TextEditingController();
+    final TextEditingController confirmController = TextEditingController();
+    final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+
+    bool isSubmitting = false;
+    bool obscureCurrentPassword = true;
+    bool obscurePassword = true;
+    bool obscureConfirm = true;
+
+    final bool? passwordChanged = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setDialogState) {
+            return AlertDialog(
+              title: const Text('Сменить пароль'),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: currentPasswordController,
+                      obscureText: obscureCurrentPassword,
+                      textInputAction: TextInputAction.next,
+                      decoration: InputDecoration(
+                        labelText: 'Текущий пароль',
+                        hintText: 'Введите текущий пароль',
+                        suffixIcon: IconButton(
+                          onPressed: () {
+                            setDialogState(
+                              () => obscureCurrentPassword =
+                                  !obscureCurrentPassword,
+                            );
+                          },
+                          icon: Icon(
+                            obscureCurrentPassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                          ),
+                        ),
+                      ),
+                      validator: (String? value) {
+                        if ((value ?? '').trim().isEmpty) {
+                          return 'Введите текущий пароль';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: passwordController,
+                      textInputAction: TextInputAction.next,
+                      obscureText: obscurePassword,
+                      decoration: InputDecoration(
+                        labelText: 'Новый пароль',
+                        hintText: 'Минимум 6 символов',
+                        suffixIcon: IconButton(
+                          onPressed: () {
+                            setDialogState(
+                              () => obscurePassword = !obscurePassword,
+                            );
+                          },
+                          icon: Icon(
+                            obscurePassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                          ),
+                        ),
+                      ),
+                      validator: (String? value) {
+                        if ((value ?? '').isEmpty) {
+                          return 'Введите новый пароль';
+                        }
+                        if ((value ?? '').length < 6) {
+                          return 'Минимум 6 символов';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: confirmController,
+                      textInputAction: TextInputAction.done,
+                      obscureText: obscureConfirm,
+                      decoration: InputDecoration(
+                        labelText: 'Подтвердите пароль',
+                        hintText: 'Повторите пароль',
+                        suffixIcon: IconButton(
+                          onPressed: () {
+                            setDialogState(
+                              () => obscureConfirm = !obscureConfirm,
+                            );
+                          },
+                          icon: Icon(
+                            obscureConfirm
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                          ),
+                        ),
+                      ),
+                      validator: (String? value) {
+                        if ((value ?? '').isEmpty) {
+                          return 'Подтвердите пароль';
+                        }
+                        if (value != passwordController.text) {
+                          return 'Пароли не совпадают';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Отмена'),
+                ),
+                FilledButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          if (!(formKey.currentState?.validate() ?? false)) {
+                            return;
+                          }
+                          setDialogState(() => isSubmitting = true);
+                          try {
+                            await AuthService.instance.changePassword(
+                              currentPassword: currentPasswordController.text,
+                              newPassword: passwordController.text,
+                            );
+                            Navigator.of(dialogContext).pop(true);
+                          } on AuthException catch (error) {
+                            if (!mounted) return;
+                            _showInfo(error.message);
+                            setDialogState(() => isSubmitting = false);
+                          }
+                        },
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Сохранить'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    currentPasswordController.dispose();
+    passwordController.dispose();
+    confirmController.dispose();
+
+    if (passwordChanged == true) {
+      await AuthService.instance.logout();
+      if (!mounted) return;
+      context.go('/login');
+    }
+  }
+
+  Future<void> _logout() async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Выйти из аккаунта?'),
+          content: const Text('Вы сможете войти снова в любое время.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Отмена'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Выйти'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    await AuthService.instance.logout();
+    if (!mounted) return;
+    context.go('/login');
   }
 }
 
@@ -650,3 +855,5 @@ class _SettingsSwitchTile extends StatelessWidget {
     );
   }
 }
+
+

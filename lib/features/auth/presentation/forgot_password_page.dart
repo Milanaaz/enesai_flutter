@@ -1,6 +1,7 @@
-import 'package:dipl/app/app_colors.dart';
+﻿import 'package:dipl/app/app_colors.dart';
 import 'package:dipl/features/auth/presentation/widgets/auth_page_shell.dart';
 import 'package:dipl/features/auth/presentation/widgets/auth_text_field.dart';
+import 'package:dipl/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -15,19 +16,36 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
 
+  bool _isSubmitting = false;
+
   @override
   void dispose() {
     _emailController.dispose();
     super.dispose();
   }
 
-  void _submit() {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Инструкция для сброса пароля отправлена на вашу почту.'),
-      ),
-    );
+  Future<void> _submit() async {
+    if (!(_formKey.currentState?.validate() ?? false) || _isSubmitting) return;
+
+    setState(() => _isSubmitting = true);
+    try {
+      await AuthService.instance.forgotPassword(_emailController.text);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Инструкция для сброса пароля отправлена на вашу почту.'),
+        ),
+      );
+    } on AuthException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
   }
 
   @override
@@ -43,6 +61,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             hint: 'example@mail.com',
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.done,
+            autofillHints: const <String>[AutofillHints.email],
+            hintLocales: const <Locale>[Locale('en')],
             prefixIcon: Icons.mail_outline,
             validator: (value) {
               final String email = value?.trim() ?? '';
@@ -58,7 +79,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         SizedBox(
           width: double.infinity,
           child: FilledButton(
-            onPressed: _submit,
+            onPressed: _isSubmitting ? null : _submit,
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.brandPrimary,
               foregroundColor: Colors.white,
@@ -67,10 +88,16 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 borderRadius: BorderRadius.circular(14),
               ),
             ),
-            child: const Text(
-              'Отправить инструкцию',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
+            child: _isSubmitting
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text(
+                    'Отправить инструкцию',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
           ),
         ),
         const SizedBox(height: 8),

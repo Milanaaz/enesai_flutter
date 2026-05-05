@@ -1,7 +1,5 @@
 import 'package:dipl/app/app_colors.dart';
-import 'package:dipl/features/auth/presentation/widgets/auth_divider.dart';
 import 'package:dipl/features/auth/presentation/widgets/auth_page_shell.dart';
-import 'package:dipl/features/auth/presentation/widgets/auth_social_buttons.dart';
 import 'package:dipl/features/auth/presentation/widgets/auth_text_field.dart';
 import 'package:dipl/services/auth_service.dart';
 import 'package:flutter/material.dart';
@@ -16,16 +14,22 @@ class RegisterPage extends StatefulWidget {
 
 class _RegisterPageState extends State<RegisterPage> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _firstNameController = TextEditingController();
+  final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
+
   bool _acceptedTerms = false;
+  bool _isSubmitting = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -34,7 +38,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   Future<void> _submit() async {
     final bool isValid = _formKey.currentState?.validate() ?? false;
-    if (!isValid) return;
+    if (!isValid || _isSubmitting) return;
 
     if (!_acceptedTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -47,9 +51,29 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
-    await AuthService.instance.saveRegisteredName(_nameController.text);
-    if (!mounted) return;
-    context.go('/onboarding/language');
+    final String firstName = _firstNameController.text.trim();
+    final String lastName = _lastNameController.text.trim();
+
+    setState(() => _isSubmitting = true);
+    try {
+      await AuthService.instance.register(
+        email: _emailController.text,
+        password: _passwordController.text,
+        firstName: firstName,
+        lastName: lastName,
+      );
+      if (!mounted) return;
+      context.go('/onboarding/language');
+    } on AuthException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
   }
 
   void _goToLogin() => context.go('/login');
@@ -67,7 +91,15 @@ class _RegisterPageState extends State<RegisterPage> {
               AuthTextField(
                 label: 'Имя',
                 hint: 'Имя',
-                controller: _nameController,
+                controller: _firstNameController,
+                keyboardType: TextInputType.text,
+                textInputAction: TextInputAction.next,
+                textCapitalization: TextCapitalization.words,
+                autofillHints: const <String>[AutofillHints.givenName],
+                hintLocales: const <Locale>[
+                  Locale('ru'),
+                  Locale('en'),
+                ],
                 prefixIcon: Icons.person_outline,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
@@ -78,10 +110,34 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: 14),
               AuthTextField(
+                label: 'Фамилия',
+                hint: 'Фамилия',
+                controller: _lastNameController,
+                keyboardType: TextInputType.text,
+                textInputAction: TextInputAction.next,
+                textCapitalization: TextCapitalization.words,
+                autofillHints: const <String>[AutofillHints.familyName],
+                hintLocales: const <Locale>[
+                  Locale('ru'),
+                  Locale('en'),
+                ],
+                prefixIcon: Icons.person_outline,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Введите фамилию';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 14),
+              AuthTextField(
                 label: 'Email',
                 hint: 'example@gmail.com',
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                autofillHints: const <String>[AutofillHints.email],
+                hintLocales: const <Locale>[Locale('en')],
                 prefixIcon: Icons.mail_outline,
                 validator: _validateEmail,
               ),
@@ -90,8 +146,26 @@ class _RegisterPageState extends State<RegisterPage> {
                 label: 'Пароль',
                 hint: '••••••••',
                 controller: _passwordController,
+                keyboardType: TextInputType.text,
+                textInputAction: TextInputAction.next,
+                autofillHints: const <String>[AutofillHints.newPassword],
+                hintLocales: const <Locale>[
+                  Locale('ru'),
+                  Locale('en'),
+                ],
                 prefixIcon: Icons.lock_outline,
-                obscureText: true,
+                obscureText: _obscurePassword,
+                suffixIcon: IconButton(
+                  onPressed: () {
+                    setState(() => _obscurePassword = !_obscurePassword);
+                  },
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
                 validator: _validatePassword,
               ),
               const SizedBox(height: 14),
@@ -99,8 +173,29 @@ class _RegisterPageState extends State<RegisterPage> {
                 label: 'Подтвердите пароль',
                 hint: '••••••••',
                 controller: _confirmPasswordController,
+                keyboardType: TextInputType.text,
+                textInputAction: TextInputAction.done,
+                autofillHints: const <String>[AutofillHints.newPassword],
+                hintLocales: const <Locale>[
+                  Locale('ru'),
+                  Locale('en'),
+                ],
                 prefixIcon: Icons.lock_outline,
-                obscureText: true,
+                obscureText: _obscureConfirmPassword,
+                suffixIcon: IconButton(
+                  onPressed: () {
+                    setState(
+                      () =>
+                          _obscureConfirmPassword = !_obscureConfirmPassword,
+                    );
+                  },
+                  icon: Icon(
+                    _obscureConfirmPassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Подтвердите пароль';
@@ -158,7 +253,7 @@ class _RegisterPageState extends State<RegisterPage> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: _submit,
+                  onPressed: _isSubmitting ? null : _submit,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.brandPrimary,
                     foregroundColor: Colors.white,
@@ -167,10 +262,16 @@ class _RegisterPageState extends State<RegisterPage> {
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  child: const Text(
-                    'Зарегистрироваться',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text(
+                          'Зарегистрироваться',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
                 ),
               ),
             ],
@@ -196,10 +297,6 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
           ],
         ),
-        const SizedBox(height: 14),
-        const AuthDivider(text: 'или зарегистрироваться через'),
-        const SizedBox(height: 14),
-        AuthSocialButtons(onGooglePressed: () {}, onFacebookPressed: () {}),
       ],
     );
   }

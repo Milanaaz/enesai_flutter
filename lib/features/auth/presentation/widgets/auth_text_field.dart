@@ -7,8 +7,13 @@ class AuthTextField extends StatelessWidget {
     required this.hint,
     required this.controller,
     this.keyboardType,
+    this.textInputAction,
+    this.textCapitalization = TextCapitalization.none,
+    this.autofillHints,
+    this.hintLocales,
     this.obscureText = false,
     this.prefixIcon,
+    this.suffixIcon,
     this.validator,
     super.key,
   });
@@ -17,8 +22,13 @@ class AuthTextField extends StatelessWidget {
   final String hint;
   final TextEditingController controller;
   final TextInputType? keyboardType;
+  final TextInputAction? textInputAction;
+  final TextCapitalization textCapitalization;
+  final Iterable<String>? autofillHints;
+  final List<Locale>? hintLocales;
   final bool obscureText;
   final IconData? prefixIcon;
+  final Widget? suffixIcon;
   final String? Function(String?)? validator;
 
   @override
@@ -37,7 +47,16 @@ class AuthTextField extends StatelessWidget {
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
+          textInputAction: textInputAction,
+          textCapitalization: textCapitalization,
+          autofillHints: autofillHints,
+          hintLocales: hintLocales,
           obscureText: obscureText,
+          readOnly: false,
+          enableSuggestions: !obscureText,
+          autocorrect: !obscureText,
+          smartDashesType: SmartDashesType.disabled,
+          smartQuotesType: SmartQuotesType.disabled,
           validator: validator,
           decoration: InputDecoration(
             hintText: hint,
@@ -45,6 +64,7 @@ class AuthTextField extends StatelessWidget {
             prefixIcon: prefixIcon == null
                 ? null
                 : Icon(prefixIcon, color: AppColors.textSecondary),
+            suffixIcon: suffixIcon,
             filled: true,
             fillColor: AppColors.inputBackground,
             contentPadding: const EdgeInsets.symmetric(
