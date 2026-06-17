@@ -4,6 +4,9 @@ import 'package:dipl/app/app_colors.dart';
 import 'package:dipl/app/widgets/main_bottom_nav.dart';
 import 'package:dipl/features/chat/data/gemini_chat_service.dart';
 import 'package:flutter/material.dart';
+import 'package:speech_to_text/speech_recognition_error.dart';
+import 'package:speech_to_text/speech_recognition_result.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
@@ -15,6 +18,7 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final stt.SpeechToText _speechToText = stt.SpeechToText();
   final List<_ChatMessage> _messages = <_ChatMessage>[
     const _ChatMessage(
       text: 'Салам! Мен ИИ жардамчымын. Билдирүү жазыңыз, мен жардам берем.',
@@ -23,9 +27,16 @@ class _ChatPageState extends State<ChatPage> {
   ];
 
   bool _isTyping = false;
+  bool _speechReady = false;
+  bool _isListening = false;
+  String? _speechLocaleId;
+  String _textBeforeSpeech = '';
 
   @override
   void dispose() {
+    if (_speechReady) {
+      _speechToText.cancel();
+    }
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -64,7 +75,9 @@ class _ChatPageState extends State<ChatPage> {
             _ChatComposer(
               controller: _messageController,
               isSending: _isTyping,
+              isListening: _isListening,
               onSend: _sendMessage,
+              onVoiceInput: _toggleVoiceInput,
             ),
           ],
         ),
@@ -76,6 +89,12 @@ class _ChatPageState extends State<ChatPage> {
   Future<void> _sendMessage() async {
     final String text = _messageController.text.trim();
     if (text.isEmpty || _isTyping) return;
+    if (_isListening) {
+      await _speechToText.stop();
+      if (mounted) {
+        setState(() => _isListening = false);
+      }
+    }
 
     setState(() {
       _messages.add(_ChatMessage(text: text, isUser: true));
@@ -155,6 +174,92 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
+  Future<void> _toggleVoiceInput() async {
+    if (_isTyping) return;
+
+    if (_isListening) {
+      await _speechToText.stop();
+      if (!mounted) return;
+      setState(() => _isListening = false);
+      return;
+    }
+
+    final bool available = _speechReady || await _initializeSpeech();
+    if (!available) {
+      if (!mounted) return;
+      _showInfo('Распознавание речи недоступно или нет разрешения на микрофон');
+      return;
+    }
+
+    _textBeforeSpeech = _messageController.text.trim();
+    setState(() => _isListening = true);
+
+    await _speechToText.listen(
+      onResult: _handleSpeechResult,
+      listenOptions: stt.SpeechListenOptions(
+        partialResults: true,
+        listenMode: stt.ListenMode.dictation,
+        pauseFor: const Duration(seconds: 3),
+        listenFor: const Duration(seconds: 45),
+        localeId: _speechLocaleId,
+      ),
+    );
+  }
+
+  Future<bool> _initializeSpeech() async {
+    final bool available = await _speechToText.initialize(
+      onStatus: _handleSpeechStatus,
+      onError: _handleSpeechError,
+    );
+
+    if (!available) return false;
+
+    _speechReady = true;
+    _speechLocaleId = await _chooseSpeechLocale();
+    return true;
+  }
+
+  Future<String?> _chooseSpeechLocale() async {
+    final List<stt.LocaleName> locales = await _speechToText.locales();
+    const List<String> preferredLocales = <String>['ky_KG', 'ru_RU', 'ru'];
+
+    for (final String localeId in preferredLocales) {
+      for (final stt.LocaleName locale in locales) {
+        if (locale.localeId == localeId ||
+            locale.localeId.toLowerCase().startsWith(localeId.toLowerCase())) {
+          return locale.localeId;
+        }
+      }
+    }
+
+    return (await _speechToText.systemLocale())?.localeId;
+  }
+
+  void _handleSpeechResult(SpeechRecognitionResult result) {
+    final String words = result.recognizedWords.trim();
+    if (words.isEmpty || !mounted) return;
+
+    final String nextText = _textBeforeSpeech.isEmpty
+        ? words
+        : '$_textBeforeSpeech $words';
+    _messageController
+      ..text = nextText
+      ..selection = TextSelection.collapsed(offset: nextText.length);
+  }
+
+  void _handleSpeechStatus(String status) {
+    if (!mounted) return;
+    if (status == 'done' || status == 'notListening') {
+      setState(() => _isListening = false);
+    }
+  }
+
+  void _handleSpeechError(SpeechRecognitionError error) {
+    if (!mounted) return;
+    setState(() => _isListening = false);
+    _showInfo('Не удалось распознать речь: ${error.errorMsg}');
+  }
+
   void _showInfo(String text) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(text), duration: const Duration(seconds: 2)),
@@ -177,12 +282,16 @@ class _ChatComposer extends StatelessWidget {
   const _ChatComposer({
     required this.controller,
     required this.isSending,
+    required this.isListening,
     required this.onSend,
+    required this.onVoiceInput,
   });
 
   final TextEditingController controller;
   final bool isSending;
+  final bool isListening;
   final VoidCallback onSend;
+  final VoidCallback onVoiceInput;
 
   @override
   Widget build(BuildContext context) {
@@ -216,6 +325,26 @@ class _ChatComposer extends StatelessWidget {
                     borderSide: BorderSide.none,
                   ),
                 ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: isSending ? null : onVoiceInput,
+              style: FilledButton.styleFrom(
+                backgroundColor: isListening
+                    ? const Color(0xFFE53935)
+                    : AppColors.brandPrimary,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: AppColors.indicatorInactive,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                minimumSize: const Size(48, 48),
+                padding: EdgeInsets.zero,
+              ),
+              child: Icon(
+                isListening ? Icons.stop_rounded : Icons.mic_rounded,
+                size: 20,
               ),
             ),
             const SizedBox(width: 8),
