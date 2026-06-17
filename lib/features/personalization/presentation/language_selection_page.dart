@@ -18,7 +18,9 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
   @override
   void initState() {
     super.initState();
-    _selectedLanguageCode = widget.initialLanguageCode;
+    _selectedLanguageCode = widget.initialLanguageCode == 'ru'
+        ? widget.initialLanguageCode
+        : null;
   }
 
   void _continue() {
@@ -52,9 +54,17 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
               ),
               const SizedBox(height: 12),
               PersonalizationOptionTile(
-                title: 'Кыргызский',
-                isSelected: _selectedLanguageCode == 'ky',
-                onTap: () => setState(() => _selectedLanguageCode = 'ky'),
+                title: 'Кыргызча',
+                subtitle: 'В разработке',
+                isSelected: false,
+                onTap: () {},
+              ),
+              const SizedBox(height: 12),
+              PersonalizationOptionTile(
+                title: 'English',
+                subtitle: 'В разработке',
+                isSelected: false,
+                onTap: () {},
               ),
               const Spacer(),
               SizedBox(

@@ -13,9 +13,12 @@ import 'package:dipl/features/dictionary/presentation/dictionary_page.dart';
 import 'package:dipl/features/dictionary/presentation/models/dictionary_word.dart';
 import 'package:dipl/features/dictionary/presentation/word_review_page.dart';
 import 'package:dipl/features/home/presentation/home_page.dart';
+import 'package:dipl/features/personalization/data/placement_test_models.dart';
 import 'package:dipl/features/personalization/presentation/goal_selection_page.dart';
 import 'package:dipl/features/personalization/presentation/language_selection_page.dart';
 import 'package:dipl/features/personalization/presentation/level_selection_page.dart';
+import 'package:dipl/features/personalization/presentation/placement_test_page.dart';
+import 'package:dipl/features/personalization/presentation/placement_test_result_page.dart';
 import 'package:dipl/features/profile/presentation/profile_page.dart';
 import 'package:dipl/features/splash/presentation/splash_page.dart';
 import 'package:dipl/features/welcome/presentation/welcome_page.dart';
@@ -80,16 +83,46 @@ final GoRouter appRouter = GoRouter(
       },
     ),
     GoRoute(
+      path: '/onboarding/placement-test',
+      builder: (context, state) {
+        final String languageCode =
+            state.uri.queryParameters['lang']?.trim().isNotEmpty == true
+            ? state.uri.queryParameters['lang']!
+            : 'ru';
+        final String goalCode =
+            state.uri.queryParameters['goal']?.trim().isNotEmpty == true
+            ? state.uri.queryParameters['goal']!
+            : 'learn';
+        return PlacementTestPage(
+          languageCode: languageCode,
+          goalCode: goalCode,
+        );
+      },
+    ),
+    GoRoute(
+      path: '/onboarding/placement-test/result',
+      builder: (context, state) {
+        final String goalCode =
+            state.uri.queryParameters['goal']?.trim().isNotEmpty == true
+            ? state.uri.queryParameters['goal']!
+            : 'learn';
+        return PlacementTestResultPage(
+          goalCode: goalCode,
+          result: state.extra is PlacementTestResult
+              ? state.extra! as PlacementTestResult
+              : null,
+        );
+      },
+    ),
+    GoRoute(
       path: '/courses',
-      pageBuilder: (context, state) => const NoTransitionPage<void>(
-        child: CourseCatalogPage(),
-      ),
+      pageBuilder: (context, state) =>
+          const NoTransitionPage<void>(child: CourseCatalogPage()),
     ),
     GoRoute(
       path: '/chat',
-      pageBuilder: (context, state) => const NoTransitionPage<void>(
-        child: ChatPage(),
-      ),
+      pageBuilder: (context, state) =>
+          const NoTransitionPage<void>(child: ChatPage()),
     ),
     GoRoute(
       path: '/courses/:courseId',
@@ -139,9 +172,8 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/dictionary',
-      pageBuilder: (context, state) => const NoTransitionPage<void>(
-        child: DictionaryPage(),
-      ),
+      pageBuilder: (context, state) =>
+          const NoTransitionPage<void>(child: DictionaryPage()),
     ),
     GoRoute(
       path: '/dictionary/review',
@@ -154,15 +186,13 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/profile',
-      pageBuilder: (context, state) => const NoTransitionPage<void>(
-        child: ProfilePage(),
-      ),
+      pageBuilder: (context, state) =>
+          const NoTransitionPage<void>(child: ProfilePage()),
     ),
     GoRoute(
       path: '/',
-      pageBuilder: (context, state) => const NoTransitionPage<void>(
-        child: HomePage(),
-      ),
+      pageBuilder: (context, state) =>
+          const NoTransitionPage<void>(child: HomePage()),
     ),
   ],
 );

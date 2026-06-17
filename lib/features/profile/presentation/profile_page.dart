@@ -1,4 +1,4 @@
-﻿import 'package:dipl/app/app_colors.dart';
+import 'package:dipl/app/app_colors.dart';
 import 'package:dipl/app/widgets/main_bottom_nav.dart';
 import 'package:dipl/services/auth_service.dart';
 import 'package:flutter/material.dart';
@@ -16,7 +16,6 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _notificationsEnabled = true;
   bool _soundEnabled = true;
   String _interfaceLanguage = '\u0420\u0443\u0441\u0441\u043a\u0438\u0439';
-  String _learningLanguage = '\u041a\u044b\u0440\u0433\u044b\u0437\u0441\u043a\u0438\u0439';
   TimeOfDay _reminderTime = const TimeOfDay(hour: 20, minute: 0);
 
   @override
@@ -29,6 +28,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final String? rawName = await AuthService.instance.getRegisteredName();
     final String? rawEmail = await AuthService.instance.getRegisteredEmail();
     final String? rawLevel = await AuthService.instance.getSelectedLevel();
+    final String? rawGoalType = await AuthService.instance.getGoalType();
     final String userName = (rawName ?? '').trim().isNotEmpty
         ? rawName!.trim()
         : 'Milana';
@@ -38,7 +38,12 @@ class _ProfilePageState extends State<ProfilePage> {
     final String level = (rawLevel ?? '').trim().isNotEmpty
         ? rawLevel!.trim()
         : 'A1';
-    return _ProfileInfo(userName: userName, email: email, level: level);
+    return _ProfileInfo(
+      userName: userName,
+      email: email,
+      level: level,
+      goalTitle: _goalTitleFromType(rawGoalType),
+    );
   }
 
   @override
@@ -50,125 +55,136 @@ class _ProfilePageState extends State<ProfilePage> {
           future: _profileInfoFuture ??= _loadProfileInfo(),
           builder:
               (BuildContext context, AsyncSnapshot<_ProfileInfo> snapshot) {
-            final _ProfileInfo info =
-                snapshot.data ??
-                const _ProfileInfo(
-                  userName: 'Milana',
-                  email: 'example@gmail.com',
-                  level: 'A1',
-                );
+                final _ProfileInfo info =
+                    snapshot.data ??
+                    const _ProfileInfo(
+                      userName: 'Milana',
+                      email: 'example@gmail.com',
+                      level: 'A1',
+                      goalTitle: 'Выучить кыргызский',
+                    );
 
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-              children: [
-                _ProfileHeader(
-                  userName: info.userName,
-                  email: info.email,
-                  level: info.level,
-                  points: '1 245',
-                  learningDays: '12',
-                ),
-                const SizedBox(height: 12),
-                const _BlockTitle('Мои курсы'),
-                const SizedBox(height: 8),
-                _InfoCard(
-                  child: _CourseTile(
-                    title: 'Основы кыргызского языка',
-                    subtitle: 'Прогресс: 75% • 9 из 12 уроков',
-                    progress: 0.75,
-                    onTap: () {},
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const _BlockTitle('Сертификаты'),
-                const SizedBox(height: 8),
-                _InfoCard(
-                  child: _SimpleInfoTile(
-                    icon: Icons.workspace_premium_outlined,
-                    title: 'Сертификаты',
-                    subtitle: '2 получено • 1 в процессе',
-                    onTap: () {},
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const _BlockTitle('Прогресс обучения'),
-                const SizedBox(height: 8),
-                _InfoCard(
-                  child: Column(
-                    children: const [
-                      _ProgressRow(label: 'Завершено уроков', value: '34'),
-                      SizedBox(height: 10),
-                      _ProgressRow(label: 'Выучено слов', value: '412'),
-                      SizedBox(height: 10),
-                      _ProgressRow(label: 'Текущая серия', value: '12 дней'),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const _BlockTitle('Настройки'),
-                const SizedBox(height: 8),
-                _InfoCard(
-                  child: Column(
-                    children: [
-                      _SettingsValueTile(
-                        icon: Icons.language_outlined,
-                        title: 'Язык интерфейса',
-                        value: _interfaceLanguage,
-                        onTap: _changeInterfaceLanguage,
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+                  children: [
+                    _ProfileHeader(
+                      userName: info.userName,
+                      email: info.email,
+                      level: info.level,
+                      points: '1 245',
+                      learningDays: '12',
+                    ),
+                    const SizedBox(height: 12),
+                    const _BlockTitle('Мои курсы'),
+                    const SizedBox(height: 8),
+                    _InfoCard(
+                      child: _CourseTile(
+                        title: 'Основы кыргызского языка',
+                        subtitle: 'Прогресс: 75% • 9 из 12 уроков',
+                        progress: 0.75,
+                        onTap: () {},
                       ),
-                      const Divider(height: 20, color: AppColors.divider),
-                      _SettingsValueTile(
-                        icon: Icons.school_outlined,
-                        title: 'Язык обучения',
-                        value: _learningLanguage,
-                        onTap: _changeLearningLanguage,
+                    ),
+                    const SizedBox(height: 12),
+                    const _BlockTitle('Сертификаты'),
+                    const SizedBox(height: 8),
+                    _InfoCard(
+                      child: _SimpleInfoTile(
+                        icon: Icons.workspace_premium_outlined,
+                        title: 'Сертификаты',
+                        subtitle: '2 получено • 1 в процессе',
+                        onTap: () {},
                       ),
-                      const Divider(height: 20, color: AppColors.divider),
-                      _SettingsSwitchTile(
-                        icon: Icons.notifications_outlined,
-                        title: 'Уведомления и напоминания',
-                        value: _notificationsEnabled,
-                        onChanged: (bool value) {
-                          setState(() => _notificationsEnabled = value);
-                        },
+                    ),
+                    const SizedBox(height: 12),
+                    const _BlockTitle('Прогресс обучения'),
+                    const SizedBox(height: 8),
+                    _InfoCard(
+                      child: Column(
+                        children: const [
+                          _ProgressRow(label: 'Завершено уроков', value: '34'),
+                          SizedBox(height: 10),
+                          _ProgressRow(label: 'Выучено слов', value: '412'),
+                          SizedBox(height: 10),
+                          _ProgressRow(
+                            label: 'Текущая серия',
+                            value: '12 дней',
+                          ),
+                        ],
                       ),
-                      const Divider(height: 20, color: AppColors.divider),
-                      _SettingsValueTile(
-                        icon: Icons.access_time_outlined,
-                        title: 'Время напоминаний',
-                        value: _reminderTime.format(context),
-                        onTap: _pickReminderTime,
+                    ),
+                    const SizedBox(height: 12),
+                    const _BlockTitle('Настройки'),
+                    const SizedBox(height: 8),
+                    _InfoCard(
+                      child: Column(
+                        children: [
+                          _SettingsValueTile(
+                            icon: Icons.language_outlined,
+                            title: 'Язык интерфейса',
+                            value: _interfaceLanguage,
+                            onTap: _changeInterfaceLanguage,
+                          ),
+                          const Divider(height: 20, color: AppColors.divider),
+                          _SettingsValueTile(
+                            icon: Icons.flag_outlined,
+                            title: 'Цель обучения',
+                            value: info.goalTitle,
+                            onTap: _changeLearningGoal,
+                          ),
+                          const Divider(height: 20, color: AppColors.divider),
+                          _SettingsValueTile(
+                            icon: Icons.track_changes_outlined,
+                            title: 'Пройти тест уровня заново',
+                            value: 'Открыть',
+                            onTap: _retakePlacementTest,
+                          ),
+                          const Divider(height: 20, color: AppColors.divider),
+                          _SettingsSwitchTile(
+                            icon: Icons.notifications_outlined,
+                            title: 'Уведомления и напоминания',
+                            value: _notificationsEnabled,
+                            onChanged: (bool value) {
+                              setState(() => _notificationsEnabled = value);
+                            },
+                          ),
+                          const Divider(height: 20, color: AppColors.divider),
+                          _SettingsValueTile(
+                            icon: Icons.access_time_outlined,
+                            title: 'Время напоминаний',
+                            value: _reminderTime.format(context),
+                            onTap: _pickReminderTime,
+                          ),
+                          const Divider(height: 20, color: AppColors.divider),
+                          _SettingsSwitchTile(
+                            icon: Icons.volume_up_outlined,
+                            title: 'Звук',
+                            value: _soundEnabled,
+                            onChanged: (bool value) {
+                              setState(() => _soundEnabled = value);
+                            },
+                          ),
+                          const Divider(height: 20, color: AppColors.divider),
+                          _SettingsValueTile(
+                            icon: Icons.lock_outline,
+                            title: 'Сменить пароль',
+                            value: 'Изменить',
+                            onTap: _openChangePasswordDialog,
+                          ),
+                          const Divider(height: 20, color: AppColors.divider),
+                          _SettingsValueTile(
+                            icon: Icons.logout,
+                            title: 'Выйти из аккаунта',
+                            value: 'Выйти',
+                            isDestructive: true,
+                            onTap: _logout,
+                          ),
+                        ],
                       ),
-                      const Divider(height: 20, color: AppColors.divider),
-                      _SettingsSwitchTile(
-                        icon: Icons.volume_up_outlined,
-                        title: 'Звук',
-                        value: _soundEnabled,
-                        onChanged: (bool value) {
-                          setState(() => _soundEnabled = value);
-                        },
-                      ),
-                      const Divider(height: 20, color: AppColors.divider),
-                      _SettingsValueTile(
-                        icon: Icons.lock_outline,
-                        title: 'Сменить пароль',
-                        value: 'Изменить',
-                        onTap: _openChangePasswordDialog,
-                      ),
-                      const Divider(height: 20, color: AppColors.divider),
-                      _SettingsValueTile(
-                        icon: Icons.logout,
-                        title: 'Выйти из аккаунта',
-                        value: 'Выйти',
-                        isDestructive: true,
-                        onTap: _logout,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
+                    ),
+                  ],
+                );
+              },
         ),
       ),
       bottomNavigationBar: const MainBottomNav(currentIndex: 4),
@@ -183,6 +199,10 @@ class _ProfilePageState extends State<ProfilePage> {
         '\u041a\u044b\u0440\u0433\u044b\u0437\u0447\u0430',
         'English',
       ],
+      disabledOptions: const {
+        '\u041a\u044b\u0440\u0433\u044b\u0437\u0447\u0430',
+        'English',
+      },
       currentValue: _interfaceLanguage,
     );
     if (selected == null) {
@@ -191,20 +211,52 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _interfaceLanguage = selected);
   }
 
-  Future<void> _changeLearningLanguage() async {
-    final String? selected = await _pickFromOptions(
-      title: 'Язык обучения',
-      options: const [
-        '\u041a\u044b\u0440\u0433\u044b\u0437\u0441\u043a\u0438\u0439',
-        '\u0420\u0443\u0441\u0441\u043a\u0438\u0439',
-        'English',
-      ],
-      currentValue: _learningLanguage,
+  Future<void> _changeLearningGoal() async {
+    final String? savedGoalType = await AuthService.instance.getGoalType();
+    if (!mounted) return;
+
+    final String? selectedTitle = await _pickFromOptions(
+      title: 'Цель обучения',
+      options: _goalTitles.values.toList(growable: false),
+      currentValue: _goalTitleFromType(savedGoalType),
     );
-    if (selected == null) {
+    if (selectedTitle == null) {
       return;
     }
-    setState(() => _learningLanguage = selected);
+
+    final String? selectedLevel = await AuthService.instance.getSelectedLevel();
+    final String normalizedLevel = (selectedLevel ?? '').trim().toUpperCase();
+    if (normalizedLevel.isEmpty) {
+      _showInfo('Сначала определите уровень');
+      return;
+    }
+
+    final String goalType = _goalTypeFromCode(
+      _goalCodeFromTitle(selectedTitle),
+    );
+    try {
+      await AuthService.instance.updateOnboardingProfile(
+        languageLevel: normalizedLevel,
+        goalType: goalType,
+      );
+    } on AuthException catch (error) {
+      if (!mounted) return;
+      _showInfo(error.message);
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _profileInfoFuture = _loadProfileInfo();
+    });
+  }
+
+  Future<void> _retakePlacementTest() async {
+    final String? savedGoalType = await AuthService.instance.getGoalType();
+    if (!mounted) return;
+    context.push(
+      '/onboarding/placement-test?lang=ru&goal=${_goalCodeFromType(savedGoalType)}',
+    );
   }
 
   Future<void> _pickReminderTime() async {
@@ -222,6 +274,7 @@ class _ProfilePageState extends State<ProfilePage> {
     required String title,
     required List<String> options,
     required String currentValue,
+    Set<String> disabledOptions = const <String>{},
   }) {
     return showModalBottomSheet<String>(
       context: context,
@@ -245,16 +298,27 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 const SizedBox(height: 8),
                 ...options.map((String value) {
+                  final bool disabled = disabledOptions.contains(value);
                   return ListTile(
+                    enabled: !disabled,
                     contentPadding: EdgeInsets.zero,
                     title: Text(value),
+                    subtitle: disabled ? const Text('В разработке') : null,
                     trailing: value == currentValue
                         ? const Icon(
                             Icons.check_circle,
                             color: AppColors.brandPrimary,
                           )
+                        : disabled
+                        ? const Icon(
+                            Icons.lock_outline,
+                            color: AppColors.textSecondary,
+                            size: 20,
+                          )
                         : null,
-                    onTap: () => Navigator.of(context).pop(value),
+                    onTap: disabled
+                        ? null
+                        : () => Navigator.of(context).pop(value),
                   );
                 }),
               ],
@@ -408,6 +472,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               currentPassword: currentPasswordController.text,
                               newPassword: passwordController.text,
                             );
+                            if (!dialogContext.mounted) return;
                             Navigator.of(dialogContext).pop(true);
                           } on AuthException catch (error) {
                             if (!mounted) return;
@@ -470,16 +535,68 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 }
 
+String _goalCodeFromType(String? goalType) {
+  switch ((goalType ?? '').trim().toUpperCase()) {
+    case 'ORT_PREP':
+    case 'PREPARE_ORT':
+      return 'ort';
+    case 'CONVERSATIONAL':
+    case 'SPEAKING':
+      return 'speaking';
+    case 'BUSINESS':
+      return 'business';
+    case 'LEARN_KYRGYZ':
+    default:
+      return 'learn';
+  }
+}
+
+const Map<String, String> _goalTitles = <String, String>{
+  'learn': 'Выучить кыргызский',
+  'ort': 'Подготовка к ОРТ',
+  'speaking': 'Разговорный',
+  'business': 'Деловой',
+};
+
+String _goalTitleFromType(String? goalType) {
+  return _goalTitles[_goalCodeFromType(goalType)] ?? _goalTitles['learn']!;
+}
+
+String _goalCodeFromTitle(String title) {
+  for (final MapEntry<String, String> entry in _goalTitles.entries) {
+    if (entry.value == title) {
+      return entry.key;
+    }
+  }
+  return 'learn';
+}
+
+String _goalTypeFromCode(String code) {
+  switch (code) {
+    case 'ort':
+      return 'ORT_PREP';
+    case 'speaking':
+      return 'CONVERSATIONAL';
+    case 'business':
+      return 'BUSINESS';
+    case 'learn':
+    default:
+      return 'LEARN_KYRGYZ';
+  }
+}
+
 class _ProfileInfo {
   const _ProfileInfo({
     required this.userName,
     required this.email,
     required this.level,
+    required this.goalTitle,
   });
 
   final String userName;
   final String email;
   final String level;
+  final String goalTitle;
 }
 
 class _ProfileHeader extends StatelessWidget {
@@ -887,6 +1004,3 @@ class _SettingsSwitchTile extends StatelessWidget {
     );
   }
 }
-
-
-

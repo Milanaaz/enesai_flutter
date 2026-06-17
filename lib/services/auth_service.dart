@@ -40,15 +40,13 @@ class AuthService {
     required String lastName,
   }) async {
     try {
-      final Response<dynamic> response = await _postWithRetry(
-        '/api/v1/auth/register',
-        <String, dynamic>{
-          'email': email.trim(),
-          'password': password,
-          'firstName': firstName.trim(),
-          'lastName': lastName.trim(),
-        },
-      );
+      final Response<dynamic> response =
+          await _postWithRetry('/api/v1/auth/register', <String, dynamic>{
+            'email': email.trim(),
+            'password': password,
+            'firstName': firstName.trim(),
+            'lastName': lastName.trim(),
+          });
       return _handleAuthResponse(response.data);
     } on DioException catch (error) {
       throw AuthException(_extractErrorMessage(error));
@@ -62,10 +60,7 @@ class AuthService {
     try {
       final Response<dynamic> response = await _postWithRetry(
         '/api/v1/auth/login',
-        <String, dynamic>{
-          'email': email.trim(),
-          'password': password,
-        },
+        <String, dynamic>{'email': email.trim(), 'password': password},
       );
       return _handleAuthResponse(response.data);
     } on DioException catch (error) {
@@ -75,10 +70,9 @@ class AuthService {
 
   Future<void> forgotPassword(String email) async {
     try {
-      await _postWithRetry(
-        '/api/v1/auth/forgot-password',
-        <String, dynamic>{'email': email.trim()},
-      );
+      await _postWithRetry('/api/v1/auth/forgot-password', <String, dynamic>{
+        'email': email.trim(),
+      });
     } on DioException catch (error) {
       throw AuthException(_extractErrorMessage(error));
     }
@@ -124,14 +118,14 @@ class AuthService {
     }
 
     try {
-      await _postWithRetry(
+      await _putWithRetry(
         '/api/v1/users/me',
         <String, dynamic>{
           'languageLevel': normalizedLevel,
           'goalType': normalizedGoalType,
         },
         options: Options(
-          method: 'PATCH',
+          method: 'PUT',
           headers: <String, dynamic>{
             'Authorization': 'Bearer ${accessToken!.trim()}',
           },
@@ -322,14 +316,27 @@ class AuthService {
 
   Future<Response<dynamic>> _postWithRetry(
     String path,
-    Map<String, dynamic> data,
-    {Options? options}
-  ) async {
+    Map<String, dynamic> data, {
+    Options? options,
+  }) async {
     try {
       return await _dio.post<dynamic>(path, data: data, options: options);
     } on DioException catch (error) {
       if (!_isTimeout(error)) rethrow;
       return _dio.post<dynamic>(path, data: data, options: options);
+    }
+  }
+
+  Future<Response<dynamic>> _putWithRetry(
+    String path,
+    Map<String, dynamic> data, {
+    Options? options,
+  }) async {
+    try {
+      return await _dio.put<dynamic>(path, data: data, options: options);
+    } on DioException catch (error) {
+      if (!_isTimeout(error)) rethrow;
+      return _dio.put<dynamic>(path, data: data, options: options);
     }
   }
 
@@ -355,8 +362,7 @@ class AuthService {
         .where((String part) => part.isNotEmpty)
         .toList();
     if (parts.isEmpty) return '';
-    if (parts.length == 2 &&
-        parts[0].toLowerCase() == parts[1].toLowerCase()) {
+    if (parts.length == 2 && parts[0].toLowerCase() == parts[1].toLowerCase()) {
       return parts[0];
     }
     return parts.join(' ');

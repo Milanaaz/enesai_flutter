@@ -48,6 +48,12 @@ class _LevelSelectionPageState extends State<LevelSelectionPage> {
 
   Future<void> _continue() async {
     if (!_canContinue) return;
+    if (_levelMode == _LevelMode.test) {
+      context.push(
+        '/onboarding/placement-test?lang=${widget.languageCode}&goal=${widget.goalCode}',
+      );
+      return;
+    }
     final String levelToStore = _levelMode == _LevelMode.manual
         ? (_manualLevel ?? '')
         : 'A1';
@@ -248,9 +254,9 @@ String _goalTitle(String code) {
 String _goalTypeFromCode(String code) {
   switch (code) {
     case 'ort':
-      return 'PREPARE_ORT';
+      return 'ORT_PREP';
     case 'speaking':
-      return 'SPEAKING';
+      return 'CONVERSATIONAL';
     case 'business':
       return 'BUSINESS';
     case 'learn':

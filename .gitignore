@@ -33,6 +33,9 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Local API keys. Do not commit real secrets.
+gemini.env
+
 # Symbolication related
 app.*.symbols
 

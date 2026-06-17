@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dipl/app/app_colors.dart';
 import 'package:dipl/app/widgets/main_bottom_nav.dart';
+import 'package:dipl/features/chat/data/gemini_chat_service.dart';
 import 'package:flutter/material.dart';
 
 class ChatPage extends StatefulWidget {
@@ -33,7 +34,16 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Чат с ИИ')),
+      appBar: AppBar(
+        title: const Text('Чат с ИИ'),
+        actions: [
+          IconButton(
+            onPressed: _openApiKeyDialog,
+            icon: const Icon(Icons.key_outlined),
+            tooltip: 'Настроить Gemini API key',
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -51,7 +61,11 @@ class _ChatPageState extends State<ChatPage> {
                 },
               ),
             ),
-            _ChatComposer(controller: _messageController, onSend: _sendMessage),
+            _ChatComposer(
+              controller: _messageController,
+              isSending: _isTyping,
+              onSend: _sendMessage,
+            ),
           ],
         ),
       ),
@@ -61,9 +75,7 @@ class _ChatPageState extends State<ChatPage> {
 
   Future<void> _sendMessage() async {
     final String text = _messageController.text.trim();
-    if (text.isEmpty || _isTyping) {
-      return;
-    }
+    if (text.isEmpty || _isTyping) return;
 
     setState(() {
       _messages.add(_ChatMessage(text: text, isUser: true));
@@ -72,12 +84,25 @@ class _ChatPageState extends State<ChatPage> {
     });
     _scrollToBottom();
 
-    await Future<void>.delayed(const Duration(milliseconds: 900));
-    final String reply = _buildAiReply(text);
-
-    if (!mounted) {
-      return;
+    String reply;
+    try {
+      reply = await GeminiChatService.instance.sendMessage(
+        _messages
+            .map((_ChatMessage message) {
+              return GeminiChatMessage(
+                text: message.text,
+                isUser: message.isUser,
+              );
+            })
+            .toList(growable: false),
+      );
+    } on GeminiChatException catch (error) {
+      reply = error.message;
+    } catch (_) {
+      reply = 'Не удалось получить ответ. Попробуйте еще раз.';
     }
+
+    if (!mounted) return;
     setState(() {
       _messages.add(_ChatMessage(text: reply, isUser: false));
       _isTyping = false;
@@ -85,11 +110,60 @@ class _ChatPageState extends State<ChatPage> {
     _scrollToBottom();
   }
 
+  Future<void> _openApiKeyDialog() async {
+    final TextEditingController controller = TextEditingController();
+
+    final String? apiKey = await showDialog<String>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Gemini API key'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            obscureText: true,
+            decoration: const InputDecoration(
+              labelText: 'API key',
+              hintText: 'Вставьте новый ключ Gemini',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Отмена'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(controller.text.trim()),
+              child: const Text('Сохранить'),
+            ),
+          ],
+        );
+      },
+    );
+
+    controller.dispose();
+    if (apiKey == null) return;
+
+    try {
+      await GeminiChatService.instance.saveApiKey(apiKey);
+      if (!mounted) return;
+      _showInfo('Gemini API key сохранен');
+    } on GeminiChatException catch (error) {
+      if (!mounted) return;
+      _showInfo(error.message);
+    }
+  }
+
+  void _showInfo(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(text), duration: const Duration(seconds: 2)),
+    );
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollController.hasClients) {
-        return;
-      }
+      if (!_scrollController.hasClients) return;
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
         duration: const Duration(milliseconds: 250),
@@ -97,26 +171,17 @@ class _ChatPageState extends State<ChatPage> {
       );
     });
   }
-
-  String _buildAiReply(String userText) {
-    final String normalized = userText.toLowerCase();
-    if (normalized.contains('курс')) {
-      return 'Могу помочь с курсами: выбрать уровень, план уроков и цель на неделю.';
-    }
-    if (normalized.contains('словар')) {
-      return 'Для словаря рекомендую повтор 10-15 слов в день и мини-тест в конце.';
-    }
-    if (normalized.contains('привет') || normalized.contains('салам')) {
-      return 'Привет! Чем помочь в изучении кыргызского языка?';
-    }
-    return 'Билдирүү алынды: "$userText". Теманы түшүндүрүп, план түзүп, көнүгүүлөрдү бере алам.';
-  }
 }
 
 class _ChatComposer extends StatelessWidget {
-  const _ChatComposer({required this.controller, required this.onSend});
+  const _ChatComposer({
+    required this.controller,
+    required this.isSending,
+    required this.onSend,
+  });
 
   final TextEditingController controller;
+  final bool isSending;
   final VoidCallback onSend;
 
   @override
@@ -133,6 +198,7 @@ class _ChatComposer extends StatelessWidget {
             Expanded(
               child: TextField(
                 controller: controller,
+                enabled: !isSending,
                 minLines: 1,
                 maxLines: 4,
                 textInputAction: TextInputAction.send,
@@ -154,10 +220,11 @@ class _ChatComposer extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             FilledButton(
-              onPressed: onSend,
+              onPressed: isSending ? null : onSend,
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.brandPrimary,
                 foregroundColor: Colors.white,
+                disabledBackgroundColor: AppColors.indicatorInactive,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -224,9 +291,7 @@ class _TypingIndicatorState extends State<_TypingIndicator> {
   void initState() {
     super.initState();
     _timer = Timer.periodic(const Duration(milliseconds: 400), (_) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _dotsCount = _dotsCount == 3 ? 1 : _dotsCount + 1;
       });
