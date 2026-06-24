@@ -55,7 +55,7 @@ class DictionaryWord {
       topic: (word['topic'] ?? '').toString(),
       sourceLesson: (word['level'] ?? '').toString(),
       addedAt: _asDate(json['addedAt']) ?? DateTime.now(),
-      status: status == WordStatus.favorite ? WordStatus.learning : status,
+      status: status,
       isFavorite: status == WordStatus.favorite,
       difficulty: status == WordStatus.difficult
           ? 5
@@ -111,6 +111,34 @@ class DictionaryWord {
       audioUrl: audioUrl,
       level: level,
       userWordId: userWordId ?? this.userWordId,
+      wordId: wordId,
+    );
+  }
+
+  DictionaryWord copyWithDetails(DictionaryWord details) {
+    return DictionaryWord(
+      id: id,
+      kyrgyz: details.kyrgyz.isEmpty ? kyrgyz : details.kyrgyz,
+      translation: details.translation.isEmpty
+          ? translation
+          : details.translation,
+      transcription: details.transcription.isEmpty
+          ? transcription
+          : details.transcription,
+      example: details.example.isEmpty ? example : details.example,
+      topic: details.topic.isEmpty ? topic : details.topic,
+      sourceLesson: details.sourceLesson.isEmpty
+          ? sourceLesson
+          : details.sourceLesson,
+      addedAt: addedAt,
+      status: status,
+      isFavorite: isFavorite,
+      difficulty: difficulty,
+      knowStreak: knowStreak,
+      nextReviewAt: nextReviewAt,
+      audioUrl: details.audioUrl.isEmpty ? audioUrl : details.audioUrl,
+      level: details.level.isEmpty ? level : details.level,
+      userWordId: userWordId,
       wordId: wordId,
     );
   }

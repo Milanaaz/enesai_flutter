@@ -77,6 +77,18 @@ class DictionaryApiService {
     }
   }
 
+  Future<DictionaryWord> getWord(String wordId) async {
+    try {
+      final Response<dynamic> response = await _dio.get<dynamic>(
+        '/api/v1/words/$wordId',
+        options: await _authorizedOptions(),
+      );
+      return DictionaryWord.fromGlobalJson(_extractMap(response.data));
+    } on DioException catch (error) {
+      throw DictionaryApiException(_extractErrorMessage(error));
+    }
+  }
+
   Future<DictionaryWord> addWord(String wordId) async {
     try {
       final Response<dynamic> response = await _dio.post<dynamic>(

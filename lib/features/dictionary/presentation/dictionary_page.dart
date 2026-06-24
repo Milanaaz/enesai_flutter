@@ -15,7 +15,7 @@ class DictionaryPage extends StatefulWidget {
 class _DictionaryPageState extends State<DictionaryPage>
     with TickerProviderStateMixin {
   late final TabController _tabController = TabController(
-    length: 4,
+    length: 3,
     vsync: this,
   )..addListener(() => setState(() {}));
   final TextEditingController _searchController = TextEditingController();
@@ -59,9 +59,7 @@ class _DictionaryPageState extends State<DictionaryPage>
           learnedWords: _words
               .where((DictionaryWord w) => w.status == WordStatus.learned)
               .length,
-          favoriteWords: _words
-              .where((DictionaryWord w) => w.isFavorite)
-              .length,
+          favoriteWords: 0,
           difficultWords: _words
               .where((DictionaryWord w) => w.status == WordStatus.difficult)
               .length,
@@ -135,26 +133,40 @@ class _DictionaryPageState extends State<DictionaryPage>
                   color: const Color(0xFFF5F6FA),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: TabBar(
-                  controller: _tabController,
-                  isScrollable: true,
-                  tabAlignment: TabAlignment.start,
-                  indicator: BoxDecoration(
-                    color: AppColors.brandPrimary,
-                    borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: TabBar(
+                    controller: _tabController,
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    indicator: BoxDecoration(
+                      color: AppColors.brandPrimary,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x267C3AED),
+                          blurRadius: 10,
+                          offset: Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    dividerColor: Colors.transparent,
+                    labelColor: Colors.white,
+                    unselectedLabelColor: const Color(0xFF667085),
+                    labelPadding: EdgeInsets.zero,
+                    labelStyle: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                    unselectedLabelStyle: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                    tabs: [
+                      Tab(text: 'Изучаю ${stats.learningWords}'),
+                      Tab(text: 'Выучил ${stats.learnedWords}'),
+                      Tab(text: 'Сложные ${stats.difficultWords}'),
+                    ],
                   ),
-                  labelColor: Colors.white,
-                  unselectedLabelColor: const Color(0xFF667085),
-                  labelStyle: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                  tabs: [
-                    Tab(text: 'Изучаю ${stats.learningWords}'),
-                    Tab(text: 'Выучил ${stats.learnedWords}'),
-                    Tab(text: 'Избранные ${stats.favoriteWords}'),
-                    Tab(text: 'Сложные ${stats.difficultWords}'),
-                  ],
                 ),
               ),
               const SizedBox(height: 8),
@@ -169,8 +181,6 @@ class _DictionaryPageState extends State<DictionaryPage>
                           final DictionaryWord word = filtered[index];
                           return _WordCard(
                             word: word,
-                            onToggleFavorite: () =>
-                                _updateStatus(word, WordStatus.favorite),
                             onDelete: () => _removeWord(word),
                             onTap: () => _openWordDetails(word),
                           );
@@ -217,8 +227,6 @@ class _DictionaryPageState extends State<DictionaryPage>
       case 1:
         return word.status == WordStatus.learned;
       case 2:
-        return word.isFavorite || word.status == WordStatus.favorite;
-      case 3:
         return word.status == WordStatus.difficult;
       default:
         return true;
@@ -249,37 +257,82 @@ class _DictionaryPageState extends State<DictionaryPage>
   }
 
   Future<void> _updateStatus(DictionaryWord word, WordStatus status) async {
-    final String userWordId = word.userWordId ?? word.id;
+    final List<String> ids = _dictionaryPathIds(word);
+    if (ids.isEmpty) return;
+    Object? lastError;
     try {
-      final DictionaryWord updated = await _service.updateStatus(
-        userWordId: userWordId,
-        status: status,
-      );
-      if (!mounted) return;
-      setState(() {
-        _words = _words
-            .map((DictionaryWord item) => item.id == word.id ? updated : item)
-            .toList();
-      });
-      await _refreshStats();
+      for (final String id in ids) {
+        try {
+          final DictionaryWord updated = await _service.updateStatus(
+            userWordId: id,
+            status: status,
+          );
+          if (!mounted) return;
+          setState(() {
+            _words = _words
+                .map(
+                  (DictionaryWord item) =>
+                      _sameDictionaryWord(item, word) ? updated : item,
+                )
+                .toList();
+          });
+          await _refreshStats();
+          return;
+        } on Object catch (error) {
+          lastError = error;
+        }
+      }
+      _showSnack(lastError?.toString() ?? 'Не удалось обновить слово');
     } on Object catch (error) {
       _showSnack(error.toString());
     }
   }
 
   Future<void> _removeWord(DictionaryWord word) async {
+    final List<String> ids = _dictionaryPathIds(word);
+    if (ids.isEmpty) return;
+    Object? lastError;
     try {
-      await _service.removeWord(word.userWordId ?? word.id);
-      if (!mounted) return;
-      setState(() {
-        _words = _words
-            .where((DictionaryWord item) => item.id != word.id)
-            .toList();
-      });
-      await _refreshStats();
+      for (final String id in ids) {
+        try {
+          await _service.removeWord(id);
+          if (!mounted) return;
+          setState(() {
+            _words = _words
+                .where(
+                  (DictionaryWord item) => !_sameDictionaryWord(item, word),
+                )
+                .toList();
+          });
+          await _refreshStats();
+          return;
+        } on Object catch (error) {
+          lastError = error;
+        }
+      }
+      _showSnack(lastError?.toString() ?? 'Не удалось удалить слово');
     } on Object catch (error) {
       _showSnack(error.toString());
     }
+  }
+
+  List<String> _dictionaryPathIds(DictionaryWord word) {
+    final List<String> ids = <String>[
+      (word.wordId ?? '').trim(),
+      (word.userWordId ?? '').trim(),
+      word.id.trim(),
+    ].where((String id) => id.isNotEmpty).toSet().toList();
+    if (ids.isEmpty) {
+      _showSnack('Не найден ID слова в вашем словаре');
+    }
+    return ids;
+  }
+
+  bool _sameDictionaryWord(DictionaryWord left, DictionaryWord right) {
+    return left.id == right.id ||
+        ((left.userWordId ?? '').isNotEmpty &&
+            left.userWordId == right.userWordId) ||
+        ((left.wordId ?? '').isNotEmpty && left.wordId == right.wordId);
   }
 
   Future<void> _refreshStats() async {
@@ -309,6 +362,8 @@ class _DictionaryPageState extends State<DictionaryPage>
   }
 
   Future<void> _openWordDetails(DictionaryWord word) async {
+    final DictionaryWord displayWord = await _loadWordDetails(word);
+    if (!mounted) return;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -324,31 +379,33 @@ class _DictionaryPageState extends State<DictionaryPage>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  word.kyrgyz,
+                  displayWord.kyrgyz,
                   style: const TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 Text(
-                  word.translation,
+                  displayWord.translation,
                   style: const TextStyle(
                     color: AppColors.brandPrimary,
                     fontSize: 16,
                   ),
                 ),
-                if (word.transcription.isNotEmpty) ...[
+                if (displayWord.transcription.isNotEmpty) ...[
                   const SizedBox(height: 6),
-                  Text(word.transcription),
+                  Text(displayWord.transcription),
                 ],
-                if (word.example.isNotEmpty) ...[
+                if (displayWord.example.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  Text('Пример: ${word.example}'),
+                  Text('Пример: ${displayWord.example}'),
                 ],
                 const SizedBox(height: 8),
-                Text('Тема: ${word.topic.isEmpty ? 'Без темы' : word.topic}'),
                 Text(
-                  'Уровень: ${word.level.isEmpty ? word.sourceLesson : word.level}',
+                  'Тема: ${displayWord.topic.isEmpty ? 'Без темы' : displayWord.topic}',
+                ),
+                Text(
+                  'Уровень: ${displayWord.level.isEmpty ? displayWord.sourceLesson : displayWord.level}',
                 ),
                 const SizedBox(height: 10),
                 Wrap(
@@ -358,7 +415,7 @@ class _DictionaryPageState extends State<DictionaryPage>
                     FilledButton.tonalIcon(
                       onPressed: () {
                         Navigator.of(context).pop();
-                        _updateStatus(word, WordStatus.learned);
+                        _updateStatus(displayWord, WordStatus.learned);
                       },
                       icon: const Icon(Icons.check_circle_outline),
                       label: const Text('Выучил'),
@@ -366,7 +423,7 @@ class _DictionaryPageState extends State<DictionaryPage>
                     FilledButton.tonalIcon(
                       onPressed: () {
                         Navigator.of(context).pop();
-                        _updateStatus(word, WordStatus.difficult);
+                        _updateStatus(displayWord, WordStatus.difficult);
                       },
                       icon: const Icon(Icons.flag_outlined),
                       label: const Text('Сложное'),
@@ -374,7 +431,7 @@ class _DictionaryPageState extends State<DictionaryPage>
                     OutlinedButton.icon(
                       onPressed: () {
                         Navigator.of(context).pop();
-                        _removeWord(word);
+                        _removeWord(displayWord);
                       },
                       icon: const Icon(Icons.delete_outline),
                       label: const Text('Удалить'),
@@ -387,6 +444,17 @@ class _DictionaryPageState extends State<DictionaryPage>
         );
       },
     );
+  }
+
+  Future<DictionaryWord> _loadWordDetails(DictionaryWord word) async {
+    final String wordId = word.wordId ?? '';
+    if (wordId.isEmpty) return word;
+    try {
+      final DictionaryWord details = await _service.getWord(wordId);
+      return word.copyWithDetails(details);
+    } on Object {
+      return word;
+    }
   }
 
   void _showSnack(String message) {
@@ -546,13 +614,11 @@ class _SortMenu extends StatelessWidget {
 class _WordCard extends StatelessWidget {
   const _WordCard({
     required this.word,
-    required this.onToggleFavorite,
     required this.onDelete,
     required this.onTap,
   });
 
   final DictionaryWord word;
-  final VoidCallback onToggleFavorite;
   final VoidCallback onDelete;
   final VoidCallback onTap;
 
@@ -594,17 +660,6 @@ class _WordCard extends StatelessWidget {
                 ],
               ),
             ),
-            IconButton(
-              tooltip: 'В избранное',
-              onPressed: onToggleFavorite,
-              icon: Icon(
-                word.isFavorite ? Icons.bookmark : Icons.bookmark_border,
-                color: word.isFavorite
-                    ? AppColors.brandPrimary
-                    : const Color(0xFF98A2B3),
-                size: 20,
-              ),
-            ),
             PopupMenuButton<String>(
               onSelected: (String value) {
                 if (value == 'delete') onDelete();
@@ -627,7 +682,10 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool learned = word.status == WordStatus.learned;
+    final WordStatus visibleStatus = word.status == WordStatus.favorite
+        ? WordStatus.learning
+        : word.status;
+    final bool learned = visibleStatus == WordStatus.learned;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
@@ -635,7 +693,7 @@ class _StatusChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        wordStatusLabel(word.isFavorite ? WordStatus.favorite : word.status),
+        wordStatusLabel(visibleStatus),
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,
