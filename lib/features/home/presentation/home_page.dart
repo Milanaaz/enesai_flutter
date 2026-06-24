@@ -76,12 +76,18 @@ class _HomePageState extends State<HomePage> {
       recommendedCourses = const <CourseInfo>[];
     }
     return _HomeData(
-      userName: (rawName ?? '').trim().isNotEmpty
+      userName: profile?.fullName.trim().isNotEmpty == true
+          ? profile!.fullName
+          : (rawName ?? '').trim().isNotEmpty
           ? rawName!.trim()
           : 'Пользователь',
-      level: (rawLevel ?? '').trim().isNotEmpty ? rawLevel!.trim() : 'A1',
-      xp: analytics?.xp ?? 1245,
-      streakDays: analytics?.streakDays ?? 12,
+      level: profile?.languageLevel.trim().isNotEmpty == true
+          ? profile!.languageLevel
+          : (rawLevel ?? '').trim().isNotEmpty
+          ? rawLevel!.trim()
+          : 'A1',
+      xp: analytics?.xp ?? 0,
+      streakDays: analytics?.streakDays ?? 0,
       myCourses: myCourses,
       recommendedCourses: recommendedCourses,
     );
@@ -100,8 +106,8 @@ class _HomePageState extends State<HomePage> {
                 const _HomeData(
                   userName: 'Пользователь',
                   level: 'A1',
-                  xp: 1245,
-                  streakDays: 12,
+                  xp: 0,
+                  streakDays: 0,
                   myCourses: <UserCourseProgress>[],
                   recommendedCourses: <CourseInfo>[],
                 );
@@ -419,8 +425,12 @@ class _CurrentCourseCard extends StatelessWidget {
 class _DailyGoalCard extends StatelessWidget {
   const _DailyGoalCard();
 
+  static const int _targetMinutes = 20;
+  static const int _completedMinutes = 0;
+
   @override
   Widget build(BuildContext context) {
+    const int remainingMinutes = _targetMinutes - _completedMinutes;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
       child: Column(
@@ -449,12 +459,12 @@ class _DailyGoalCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        children: [
+                        children: const [
                           Text(
                             '20 минут в день',
                             style: TextStyle(
@@ -464,7 +474,7 @@ class _DailyGoalCard extends StatelessWidget {
                           ),
                           Spacer(),
                           Text(
-                            '15/20 мин',
+                            '0/20 мин',
                             style: TextStyle(
                               color: AppColors.textSecondary,
                               fontSize: 12,
@@ -472,11 +482,11 @@ class _DailyGoalCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      SizedBox(height: 8),
-                      ClipRRect(
+                      const SizedBox(height: 8),
+                      const ClipRRect(
                         borderRadius: BorderRadius.all(Radius.circular(999)),
                         child: LinearProgressIndicator(
-                          value: 0.75,
+                          value: 0,
                           minHeight: 6,
                           backgroundColor: Color(0xFFE5E7EB),
                           valueColor: AlwaysStoppedAnimation<Color>(
@@ -484,10 +494,12 @@ class _DailyGoalCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      SizedBox(height: 6),
+                      const SizedBox(height: 6),
                       Text(
-                        'Осталось 5 минут',
-                        style: TextStyle(
+                        remainingMinutes == _targetMinutes
+                            ? 'Начните первое занятие'
+                            : 'Осталось $remainingMinutes минут',
+                        style: const TextStyle(
                           color: AppColors.textSecondary,
                           fontSize: 12,
                         ),

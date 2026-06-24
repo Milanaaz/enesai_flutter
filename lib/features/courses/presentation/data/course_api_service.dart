@@ -146,20 +146,27 @@ class CourseApiService {
   Future<int> submitTest({
     required String testId,
     required Map<String, String> selectedOptionIds,
+    Map<String, String> textAnswers = const <String, String>{},
   }) async {
     try {
       final Response<dynamic> response = await _dio.post<dynamic>(
         '/api/v1/tests/submit',
         data: <String, dynamic>{
           'testId': testId,
-          'answers': selectedOptionIds.entries
-              .map(
-                (MapEntry<String, String> entry) => <String, dynamic>{
-                  'questionId': entry.key,
-                  'selectedOptionId': entry.value,
-                },
-              )
-              .toList(),
+          'answers': <Map<String, dynamic>>[
+            ...selectedOptionIds.entries.map(
+              (MapEntry<String, String> entry) => <String, dynamic>{
+                'questionId': entry.key,
+                'selectedOptionId': entry.value,
+              },
+            ),
+            ...textAnswers.entries.map(
+              (MapEntry<String, String> entry) => <String, dynamic>{
+                'questionId': entry.key,
+                'textAnswer': entry.value,
+              },
+            ),
+          ],
         },
         options: await _authorizedOptions(),
       );

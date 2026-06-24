@@ -1,5 +1,7 @@
 import 'package:dipl/app/app_colors.dart';
 import 'package:dipl/app/widgets/main_bottom_nav.dart';
+import 'package:dipl/features/courses/presentation/data/course_api_service.dart';
+import 'package:dipl/features/courses/presentation/models/course_models.dart';
 import 'package:dipl/features/user/data/user_api_service.dart';
 import 'package:dipl/services/auth_service.dart';
 import 'package:flutter/material.dart';
@@ -36,6 +38,7 @@ class _ProfilePageState extends State<ProfilePage> {
     List<CertificateInfo> certificates = const <CertificateInfo>[];
     List<AchievementInfo> achievements = const <AchievementInfo>[];
     List<LeaderboardEntry> leaderboard = const <LeaderboardEntry>[];
+    List<UserCourseProgress> myCourses = const <UserCourseProgress>[];
     String placementLevel = '';
 
     try {
@@ -54,8 +57,18 @@ class _ProfilePageState extends State<ProfilePage> {
     }
     try {
       analytics = await UserApiService.instance.getMyAnalytics();
+      if (analytics.activeCourses.isNotEmpty) {
+        myCourses = analytics.activeCourses;
+      }
     } on UserApiException {
       analytics = null;
+    }
+    try {
+      if (myCourses.isEmpty) {
+        myCourses = await CourseApiService.instance.getMyCourses();
+      }
+    } on CourseApiException {
+      myCourses = const <UserCourseProgress>[];
     }
     try {
       stats = await UserApiService.instance.getMyStats();
@@ -117,6 +130,7 @@ class _ProfilePageState extends State<ProfilePage> {
       certificates: certificates,
       achievements: achievements,
       leaderboard: leaderboard,
+      myCourses: myCourses,
     );
   }
 
@@ -144,7 +158,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   certificates: <CertificateInfo>[],
                   achievements: <AchievementInfo>[],
                   leaderboard: <LeaderboardEntry>[],
+                  myCourses: <UserCourseProgress>[],
                 );
+            final UserCourseProgress? currentCourse = info.currentCourse;
 
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
@@ -160,12 +176,24 @@ class _ProfilePageState extends State<ProfilePage> {
                 const _BlockTitle('Мои курсы'),
                 const SizedBox(height: 8),
                 _InfoCard(
-                  child: _CourseTile(
-                    title: 'Основы кыргызского языка',
-                    subtitle: 'Прогресс: 75% • 9 из 12 уроков',
-                    progress: 0.75,
-                    onTap: () {},
-                  ),
+                  child: currentCourse == null
+                      ? _SimpleInfoTile(
+                          icon: Icons.menu_book_outlined,
+                          title: 'Курсы не выбраны',
+                          subtitle: 'Откройте каталог и начните обучение',
+                          onTap: () => context.push('/courses'),
+                        )
+                      : _CourseTile(
+                          title: currentCourse.courseTitle,
+                          subtitle: _courseProgressSubtitle(currentCourse),
+                          progress:
+                              (currentCourse.progressPercent.clamp(0, 100) /
+                                      100)
+                                  .toDouble(),
+                          onTap: () => context.push(
+                            '/courses/${currentCourse.courseId}',
+                          ),
+                        ),
                 ),
                 const SizedBox(height: 12),
                 const _BlockTitle('Сертификаты'),
@@ -722,6 +750,19 @@ String _formatNumber(int value) {
   );
 }
 
+String _courseProgressSubtitle(UserCourseProgress course) {
+  final int percent = course.progressPercent.clamp(0, 100);
+  final int completedLessons = course.completedLessons.clamp(0, 1000000);
+  final int totalLessons = course.totalLessons.clamp(0, 1000000);
+  if (totalLessons > 0) {
+    return 'Прогресс: $percent% • $completedLessons из $totalLessons уроков';
+  }
+  if (course.lastLessonTitle.isNotEmpty) {
+    return 'Прогресс: $percent% • ${course.lastLessonTitle}';
+  }
+  return 'Прогресс: $percent%';
+}
+
 class _ProfileInfo {
   const _ProfileInfo({
     required this.userName,
@@ -737,6 +778,7 @@ class _ProfileInfo {
     required this.certificates,
     required this.achievements,
     required this.leaderboard,
+    required this.myCourses,
   });
 
   final String userName;
@@ -752,6 +794,15 @@ class _ProfileInfo {
   final List<CertificateInfo> certificates;
   final List<AchievementInfo> achievements;
   final List<LeaderboardEntry> leaderboard;
+  final List<UserCourseProgress> myCourses;
+
+  UserCourseProgress? get currentCourse {
+    if (myCourses.isEmpty) return null;
+    return myCourses.firstWhere(
+      (UserCourseProgress course) => !course.completed,
+      orElse: () => myCourses.first,
+    );
+  }
 }
 
 class _ProfileHeader extends StatelessWidget {

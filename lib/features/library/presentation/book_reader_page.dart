@@ -4,6 +4,7 @@ import 'package:dipl/features/dictionary/presentation/models/dictionary_word.dar
 import 'package:dipl/features/library/data/library_api_service.dart';
 import 'package:dipl/features/library/data/library_models.dart';
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 
 class BookReaderPage extends StatefulWidget {
   const BookReaderPage({required this.bookId, super.key});
@@ -17,15 +18,23 @@ class BookReaderPage extends StatefulWidget {
 class _BookReaderPageState extends State<BookReaderPage> {
   final LibraryApiService _service = LibraryApiService.instance;
   final DictionaryApiService _dictionaryService = DictionaryApiService.instance;
+  final AudioPlayer _audioPlayer = AudioPlayer();
   LibraryBook? _book;
   LibraryBookPage? _page;
   bool _loading = true;
   String? _error;
+  String? _preparedAudioUrl;
 
   @override
   void initState() {
     super.initState();
     _loadInitial();
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
   }
 
   @override
@@ -77,6 +86,14 @@ class _BookReaderPageState extends State<BookReaderPage> {
                       ),
                     ),
                   ),
+                  if (page.audioUrl.trim().isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      child: _AudioControls(
+                        player: _audioPlayer,
+                        onPlayPause: () => _toggleAudio(page.audioUrl),
+                      ),
+                    ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                     child: Row(
@@ -95,12 +112,14 @@ class _BookReaderPageState extends State<BookReaderPage> {
                           child: FilledButton.icon(
                             onPressed: page.hasNext
                                 ? () => _loadPage(page.pageNumber + 1)
-                                : null,
+                                : () => _finishBook(page),
                             style: FilledButton.styleFrom(
                               backgroundColor: AppColors.brandPrimary,
                             ),
-                            icon: const Icon(Icons.chevron_right),
-                            label: const Text('Далее'),
+                            icon: Icon(
+                              page.hasNext ? Icons.chevron_right : Icons.check,
+                            ),
+                            label: Text(page.hasNext ? 'Далее' : 'Завершить'),
                           ),
                         ),
                       ],
@@ -132,6 +151,7 @@ class _BookReaderPageState extends State<BookReaderPage> {
         _page = page;
         _loading = false;
       });
+      await _preparePageAudio(page.audioUrl);
     } on Object catch (error) {
       if (!mounted) return;
       setState(() {
@@ -160,6 +180,28 @@ class _BookReaderPageState extends State<BookReaderPage> {
         _page = page;
         _loading = false;
       });
+      await _preparePageAudio(page.audioUrl);
+    } on Object catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _finishBook(LibraryBookPage page) async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await _service.updateProgress(
+        bookId: widget.bookId,
+        currentPage: page.pageNumber,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop();
     } on Object catch (error) {
       if (!mounted) return;
       setState(() {
@@ -227,6 +269,142 @@ class _BookReaderPageState extends State<BookReaderPage> {
           : translation.transcription,
     );
   }
+
+  Future<void> _preparePageAudio(String rawUrl) async {
+    final String audioUrl = rawUrl.trim();
+    await _audioPlayer.stop();
+    _preparedAudioUrl = null;
+    if (audioUrl.isEmpty) return;
+
+    try {
+      await _audioPlayer.setUrl(audioUrl);
+      _preparedAudioUrl = audioUrl;
+    } on Object catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Не удалось загрузить аудио: $error')),
+      );
+    }
+  }
+
+  Future<void> _toggleAudio(String rawUrl) async {
+    final String audioUrl = rawUrl.trim();
+    if (audioUrl.isEmpty) return;
+
+    try {
+      if (_preparedAudioUrl != audioUrl) {
+        await _preparePageAudio(audioUrl);
+      }
+      if (_audioPlayer.playing) {
+        await _audioPlayer.pause();
+      } else {
+        await _audioPlayer.play();
+      }
+    } on Object catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Не удалось воспроизвести аудио: $error')),
+      );
+    }
+  }
+}
+
+class _AudioControls extends StatelessWidget {
+  const _AudioControls({required this.player, required this.onPlayPause});
+
+  final AudioPlayer player;
+  final VoidCallback onPlayPause;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF6F7FB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        children: [
+          StreamBuilder<PlayerState>(
+            stream: player.playerStateStream,
+            builder: (context, snapshot) {
+              final PlayerState? state = snapshot.data;
+              final bool loading =
+                  state?.processingState == ProcessingState.loading ||
+                  state?.processingState == ProcessingState.buffering;
+              final bool playing = state?.playing == true;
+              return IconButton.filled(
+                onPressed: loading ? null : onPlayPause,
+                style: IconButton.styleFrom(
+                  backgroundColor: AppColors.brandPrimary,
+                  foregroundColor: Colors.white,
+                ),
+                icon: loading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Icon(playing ? Icons.pause : Icons.play_arrow),
+                tooltip: playing ? 'Пауза' : 'Слушать',
+              );
+            },
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: StreamBuilder<Duration>(
+              stream: player.positionStream,
+              builder: (context, snapshot) {
+                final Duration position = snapshot.data ?? Duration.zero;
+                final Duration duration = player.duration ?? Duration.zero;
+                final double progress = duration.inMilliseconds <= 0
+                    ? 0
+                    : (position.inMilliseconds / duration.inMilliseconds)
+                          .clamp(0, 1)
+                          .toDouble();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Аудио страницы',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 6),
+                    LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 5,
+                      backgroundColor: const Color(0xFFE4E7EC),
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        AppColors.brandPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${_formatAudioDuration(position)} / ${_formatAudioDuration(duration)}',
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _formatAudioDuration(Duration duration) {
+  final int minutes = duration.inMinutes;
+  final int seconds = duration.inSeconds.remainder(60);
+  return '$minutes:${seconds.toString().padLeft(2, '0')}';
 }
 
 class _TappableText extends StatelessWidget {

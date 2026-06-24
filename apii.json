@@ -928,6 +928,172 @@
                 ]
             }
         },
+        "/api/v1/admin/books/{bookId}": {
+            "put": {
+                "tags": [
+                    "Admin — Library"
+                ],
+                "summary": "Редактировать книгу",
+                "description": "Изменяет основные данные книги: название, автора, описание, обложку, уровень, жанр.\nСтатус книги (DRAFT/PUBLISHED) не меняется через этот эндпоинт.\nДля публикации используй POST /admin/books/{bookId}/publish.\nДля архивирования используй POST /admin/books/{bookId}/archive.\n",
+                "operationId": "updateBook",
+                "parameters": [
+                    {
+                        "name": "bookId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateBookRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponseBookResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Admin — Library"
+                ],
+                "summary": "Удалить книгу полностью (только SUPER_ADMIN)",
+                "operationId": "deleteBook",
+                "parameters": [
+                    {
+                        "name": "bookId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponseVoid"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/books/pages/{pageId}": {
+            "put": {
+                "tags": [
+                    "Admin — Library"
+                ],
+                "summary": "Редактировать страницу книги",
+                "description": "Изменяет текст страницы на кыргызском и русском языках, аудио URL.",
+                "operationId": "updatePage",
+                "parameters": [
+                    {
+                        "name": "pageId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateBookPageRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponseBookPageResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Admin — Library"
+                ],
+                "summary": "Удалить страницу книги",
+                "operationId": "deletePage",
+                "parameters": [
+                    {
+                        "name": "pageId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponseVoid"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/v1/tests/submit": {
             "post": {
                 "tags": [
@@ -2521,6 +2687,43 @@
                 ]
             }
         },
+        "/api/v1/admin/books/{bookId}/archive": {
+            "post": {
+                "tags": [
+                    "Admin — Library"
+                ],
+                "summary": "Архивировать книгу (скрыть из каталога)",
+                "operationId": "archiveBook",
+                "parameters": [
+                    {
+                        "name": "bookId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponseBookResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/v1/admin/books/pages": {
             "post": {
                 "tags": [
@@ -2545,6 +2748,43 @@
                             "*/*": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiResponseBookPageResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/books/full": {
+            "post": {
+                "tags": [
+                    "Admin — Library"
+                ],
+                "summary": "Создать книгу сразу со всеми страницами",
+                "description": "Позволяет создать книгу и все её страницы одним запросом.\nСтраницы автоматически нумеруются по порядку в списке (1, 2, 3...).\nЕсли publishImmediately = true — книга сразу публикуется и становится видна пользователям.\nЕсли publishImmediately = false (по умолчанию) — книга создаётся в статусе DRAFT.\n\nПример запроса:\n{\n  \"title\": \"Менин үй-бүлөм\",\n  \"author\": \"Айгуль Асанова\",\n  \"description\": \"Рассказ о семье для начинающих\",\n  \"level\": \"A1\",\n  \"genre\": \"STORY\",\n  \"readingTimeMinutes\": 10,\n  \"publishImmediately\": true,\n  \"pages\": [\n    {\n      \"content\": \"Текст первой страницы на кыргызском...\",\n      \"contentRu\": \"Перевод первой страницы на русском...\",\n      \"audioUrl\": \"\"\n    },\n    {\n      \"content\": \"Текст второй страницы...\",\n      \"contentRu\": \"Перевод второй страницы...\",\n      \"audioUrl\": \"\"\n    }\n  ]\n}\n",
+                "operationId": "createBookWithPages",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateBookWithPagesRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiResponseBookWithPagesResponse"
                                 }
                             }
                         }
@@ -4127,43 +4367,6 @@
                     }
                 ]
             }
-        },
-        "/api/v1/admin/books/{bookId}": {
-            "delete": {
-                "tags": [
-                    "Admin — Library"
-                ],
-                "summary": "Удалить книгу",
-                "operationId": "deleteBook",
-                "parameters": [
-                    {
-                        "name": "bookId",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "content": {
-                            "*/*": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiResponseVoid"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
-            }
         }
     },
     "components": {
@@ -5023,6 +5226,115 @@
                     },
                     "userEnrolled": {
                         "type": "boolean"
+                    }
+                }
+            },
+            "UpdateBookRequest": {
+                "required": [
+                    "author",
+                    "level",
+                    "title"
+                ],
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string"
+                    },
+                    "author": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "coverUrl": {
+                        "type": "string"
+                    },
+                    "level": {
+                        "type": "string",
+                        "enum": [
+                            "A1",
+                            "A2",
+                            "B1",
+                            "B2"
+                        ]
+                    },
+                    "genre": {
+                        "type": "string"
+                    },
+                    "readingTimeMinutes": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            },
+            "UpdateBookPageRequest": {
+                "required": [
+                    "content"
+                ],
+                "type": "object",
+                "properties": {
+                    "content": {
+                        "type": "string"
+                    },
+                    "contentRu": {
+                        "type": "string"
+                    },
+                    "audioUrl": {
+                        "type": "string"
+                    }
+                }
+            },
+            "ApiResponseBookPageResponse": {
+                "type": "object",
+                "properties": {
+                    "success": {
+                        "type": "boolean"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/BookPageResponse"
+                    },
+                    "timestamp": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "BookPageResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "pageNumber": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "content": {
+                        "type": "string"
+                    },
+                    "contentRu": {
+                        "type": "string"
+                    },
+                    "audioUrl": {
+                        "type": "string"
+                    },
+                    "hasNext": {
+                        "type": "boolean"
+                    },
+                    "hasPrev": {
+                        "type": "boolean"
+                    },
+                    "progressPercent": {
+                        "type": "integer",
+                        "format": "int32"
                     }
                 }
             },
@@ -6386,7 +6698,72 @@
                     }
                 }
             },
-            "ApiResponseBookPageResponse": {
+            "CreateBookWithPagesRequest": {
+                "required": [
+                    "author",
+                    "level",
+                    "pages",
+                    "title"
+                ],
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string"
+                    },
+                    "author": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "coverUrl": {
+                        "type": "string"
+                    },
+                    "level": {
+                        "type": "string",
+                        "enum": [
+                            "A1",
+                            "A2",
+                            "B1",
+                            "B2"
+                        ]
+                    },
+                    "genre": {
+                        "type": "string"
+                    },
+                    "readingTimeMinutes": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "publishImmediately": {
+                        "type": "boolean"
+                    },
+                    "pages": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PageContent"
+                        }
+                    }
+                }
+            },
+            "PageContent": {
+                "required": [
+                    "content"
+                ],
+                "type": "object",
+                "properties": {
+                    "content": {
+                        "type": "string"
+                    },
+                    "contentRu": {
+                        "type": "string"
+                    },
+                    "audioUrl": {
+                        "type": "string"
+                    }
+                }
+            },
+            "ApiResponseBookWithPagesResponse": {
                 "type": "object",
                 "properties": {
                     "success": {
@@ -6396,7 +6773,7 @@
                         "type": "string"
                     },
                     "data": {
-                        "$ref": "#/components/schemas/BookPageResponse"
+                        "$ref": "#/components/schemas/BookWithPagesResponse"
                     },
                     "timestamp": {
                         "type": "string",
@@ -6404,39 +6781,24 @@
                     }
                 }
             },
-            "BookPageResponse": {
+            "BookWithPagesResponse": {
                 "type": "object",
                 "properties": {
-                    "id": {
-                        "type": "string",
-                        "format": "uuid"
-                    },
-                    "pageNumber": {
-                        "type": "integer",
-                        "format": "int32"
+                    "book": {
+                        "$ref": "#/components/schemas/BookResponse"
                     },
                     "totalPages": {
                         "type": "integer",
                         "format": "int32"
                     },
-                    "content": {
+                    "pageIds": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "status": {
                         "type": "string"
-                    },
-                    "contentRu": {
-                        "type": "string"
-                    },
-                    "audioUrl": {
-                        "type": "string"
-                    },
-                    "hasNext": {
-                        "type": "boolean"
-                    },
-                    "hasPrev": {
-                        "type": "boolean"
-                    },
-                    "progressPercent": {
-                        "type": "integer",
-                        "format": "int32"
                     }
                 }
             },
@@ -6472,12 +6834,12 @@
                     "last": {
                         "type": "boolean"
                     },
+                    "first": {
+                        "type": "boolean"
+                    },
                     "numberOfElements": {
                         "type": "integer",
                         "format": "int32"
-                    },
-                    "first": {
-                        "type": "boolean"
                     },
                     "pageable": {
                         "$ref": "#/components/schemas/PageableObject"
@@ -6516,11 +6878,11 @@
                     "unpaged": {
                         "type": "boolean"
                     },
-                    "pageNumber": {
+                    "pageSize": {
                         "type": "integer",
                         "format": "int32"
                     },
-                    "pageSize": {
+                    "pageNumber": {
                         "type": "integer",
                         "format": "int32"
                     },
@@ -7053,12 +7415,12 @@
                     "last": {
                         "type": "boolean"
                     },
+                    "first": {
+                        "type": "boolean"
+                    },
                     "numberOfElements": {
                         "type": "integer",
                         "format": "int32"
-                    },
-                    "first": {
-                        "type": "boolean"
                     },
                     "pageable": {
                         "$ref": "#/components/schemas/PageableObject"
@@ -7307,12 +7669,12 @@
                     "last": {
                         "type": "boolean"
                     },
+                    "first": {
+                        "type": "boolean"
+                    },
                     "numberOfElements": {
                         "type": "integer",
                         "format": "int32"
-                    },
-                    "first": {
-                        "type": "boolean"
                     },
                     "pageable": {
                         "$ref": "#/components/schemas/PageableObject"
@@ -7543,12 +7905,12 @@
                     "last": {
                         "type": "boolean"
                     },
+                    "first": {
+                        "type": "boolean"
+                    },
                     "numberOfElements": {
                         "type": "integer",
                         "format": "int32"
-                    },
-                    "first": {
-                        "type": "boolean"
                     },
                     "pageable": {
                         "$ref": "#/components/schemas/PageableObject"
@@ -7610,12 +7972,12 @@
                     "last": {
                         "type": "boolean"
                     },
+                    "first": {
+                        "type": "boolean"
+                    },
                     "numberOfElements": {
                         "type": "integer",
                         "format": "int32"
-                    },
-                    "first": {
-                        "type": "boolean"
                     },
                     "pageable": {
                         "$ref": "#/components/schemas/PageableObject"
