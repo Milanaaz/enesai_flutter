@@ -10,9 +10,10 @@ import 'package:dipl/features/courses/presentation/lesson_summary_page.dart';
 import 'package:dipl/features/courses/presentation/module_test_page.dart';
 import 'package:dipl/features/courses/presentation/module_test_result_page.dart';
 import 'package:dipl/features/dictionary/presentation/dictionary_page.dart';
-import 'package:dipl/features/dictionary/presentation/models/dictionary_word.dart';
 import 'package:dipl/features/dictionary/presentation/word_review_page.dart';
 import 'package:dipl/features/home/presentation/home_page.dart';
+import 'package:dipl/features/library/presentation/book_reader_page.dart';
+import 'package:dipl/features/library/presentation/library_page.dart';
 import 'package:dipl/features/personalization/data/placement_test_models.dart';
 import 'package:dipl/features/personalization/presentation/goal_selection_page.dart';
 import 'package:dipl/features/personalization/presentation/language_selection_page.dart';
@@ -115,6 +116,18 @@ final GoRouter appRouter = GoRouter(
       },
     ),
     GoRoute(
+      path: '/library',
+      pageBuilder: (context, state) =>
+          const NoTransitionPage<void>(child: LibraryPage()),
+    ),
+    GoRoute(
+      path: '/library/:bookId',
+      builder: (context, state) {
+        final String bookId = state.pathParameters['bookId'] ?? '';
+        return BookReaderPage(bookId: bookId);
+      },
+    ),
+    GoRoute(
       path: '/courses',
       pageBuilder: (context, state) =>
           const NoTransitionPage<void>(child: CourseCatalogPage()),
@@ -135,7 +148,11 @@ final GoRouter appRouter = GoRouter(
       path: '/courses/:courseId/lesson',
       builder: (context, state) {
         final String courseId = state.pathParameters['courseId'] ?? '';
-        return LessonPage(courseId: courseId);
+        final String? lessonId =
+            state.uri.queryParameters['lessonId']?.trim().isNotEmpty == true
+            ? state.uri.queryParameters['lessonId']
+            : null;
+        return LessonPage(courseId: courseId, lessonId: lessonId);
       },
     ),
     GoRoute(
@@ -151,7 +168,11 @@ final GoRouter appRouter = GoRouter(
       path: '/courses/:courseId/module-test',
       builder: (context, state) {
         final String courseId = state.pathParameters['courseId'] ?? '';
-        return ModuleTestPage(courseId: courseId);
+        final String? moduleId =
+            state.uri.queryParameters['moduleId']?.trim().isNotEmpty == true
+            ? state.uri.queryParameters['moduleId']
+            : null;
+        return ModuleTestPage(courseId: courseId, moduleId: moduleId);
       },
     ),
     GoRoute(
@@ -177,12 +198,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/dictionary/review',
-      builder: (context, state) {
-        final List<DictionaryWord> words = state.extra is List<DictionaryWord>
-            ? state.extra! as List<DictionaryWord>
-            : const <DictionaryWord>[];
-        return WordReviewPage(initialWords: words);
-      },
+      builder: (context, state) => const WordReviewPage(),
     ),
     GoRoute(
       path: '/profile',

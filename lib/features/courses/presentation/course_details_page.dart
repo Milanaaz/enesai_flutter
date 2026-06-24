@@ -1,76 +1,161 @@
 import 'package:dipl/app/app_colors.dart';
+import 'package:dipl/features/courses/presentation/data/course_api_service.dart';
 import 'package:dipl/features/courses/presentation/data/mock_courses.dart';
 import 'package:dipl/features/courses/presentation/models/course_models.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-class CourseDetailsPage extends StatelessWidget {
+class CourseDetailsPage extends StatefulWidget {
   const CourseDetailsPage({required this.courseId, super.key});
 
   final String courseId;
 
   @override
+  State<CourseDetailsPage> createState() => _CourseDetailsPageState();
+}
+
+class _CourseDetailsPageState extends State<CourseDetailsPage> {
+  late Future<CourseInfo?> _courseFuture;
+  bool _startingCourse = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _courseFuture = _loadCourse();
+  }
+
+  Future<CourseInfo?> _loadCourse() async {
+    return CourseApiService.instance.getCourseDetail(widget.courseId);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    CourseInfo? course;
-    for (final CourseInfo item in mockCourses) {
-      if (item.id == courseId) {
-        course = item;
-        break;
-      }
-    }
+    return FutureBuilder<CourseInfo?>(
+      future: _courseFuture,
+      builder: (context, snapshot) {
+        final CourseInfo? fallback = _findMockCourse(widget.courseId);
+        final CourseInfo? course = snapshot.data ?? fallback;
+        if (course == null &&
+            snapshot.connectionState != ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: Text('Курс не найден')));
+        }
+        final CourseInfo safeCourse = course ?? fallback ?? mockCourses.first;
+        final LessonInfo? firstLesson = _firstAvailableLesson(safeCourse);
+        final CourseModule? activeModule = _activeModule(safeCourse);
+        final String cta = safeCourse.status == CourseStatus.notStarted
+            ? 'Начать'
+            : 'Продолжить';
 
-    if (course == null) {
-      return const Scaffold(body: Center(child: Text('Курс не найден')));
-    }
-
-    final CourseInfo safeCourse = course;
-
-    final String cta = safeCourse.status == CourseStatus.notStarted
-        ? 'Начать'
-        : 'Продолжить';
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Страница курса')),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
-          children: [
-            _CourseSummaryCard(course: safeCourse),
-            const SizedBox(height: 20),
-            const Text(
-              'Программа курса',
-              style: TextStyle(fontSize: 34 / 2, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 12),
-            ...List<Widget>.generate(safeCourse.modules.length, (
-              int moduleIndex,
-            ) {
-              final CourseModule module = safeCourse.modules[moduleIndex];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: _ModuleCard(
-                  module: module,
-                  moduleIndex: moduleIndex,
-                  course: safeCourse,
-                  onStartLesson: () =>
-                      context.push('/courses/$courseId/lesson'),
+        return Scaffold(
+          appBar: AppBar(title: const Text('Страница курса')),
+          body: SafeArea(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+              children: [
+                if (snapshot.hasError)
+                  _LoadErrorBanner(
+                    message: snapshot.error.toString(),
+                    onRetry: () => setState(() {
+                      _courseFuture = _loadCourse();
+                    }),
+                  ),
+                if (snapshot.connectionState == ConnectionState.waiting)
+                  const LinearProgressIndicator(minHeight: 2),
+                if (snapshot.hasError ||
+                    snapshot.connectionState == ConnectionState.waiting)
+                  const SizedBox(height: 12),
+                _CourseSummaryCard(course: safeCourse),
+                const SizedBox(height: 20),
+                const Text(
+                  'Программа курса',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
                 ),
-              );
-            }),
-          ],
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        child: FilledButton(
-          onPressed: () => context.push('/courses/$courseId/lesson'),
-          style: FilledButton.styleFrom(
-            backgroundColor: AppColors.brandPrimary,
-            padding: const EdgeInsets.symmetric(vertical: 14),
+                const SizedBox(height: 12),
+                ...List<Widget>.generate(safeCourse.modules.length, (
+                  int moduleIndex,
+                ) {
+                  final CourseModule module = safeCourse.modules[moduleIndex];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: _ModuleCard(
+                      module: module,
+                      moduleIndex: moduleIndex,
+                      course: safeCourse,
+                      onStartLesson: (LessonInfo lesson) =>
+                          _openLesson(safeCourse, lesson),
+                      onStartTest: module.id.isEmpty
+                          ? null
+                          : () => context.push(
+                              '/courses/${widget.courseId}/module-test?moduleId=${module.id}',
+                            ),
+                    ),
+                  );
+                }),
+              ],
+            ),
           ),
-          child: Text(cta),
-        ),
-      ),
+          bottomNavigationBar: SafeArea(
+            minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: FilledButton(
+              onPressed: firstLesson == null || _startingCourse
+                  ? null
+                  : () => _openLesson(safeCourse, firstLesson),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.brandPrimary,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: Text(
+                activeModule == null || activeModule.id.isEmpty
+                    ? cta
+                    : '$cta модуль',
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openLesson(CourseInfo course, LessonInfo lesson) async {
+    setState(() => _startingCourse = true);
+    try {
+      if (course.status == CourseStatus.notStarted) {
+        await CourseApiService.instance.enrollInCourse(widget.courseId);
+      }
+      if (!mounted) return;
+      context.push('/courses/${widget.courseId}/lesson?lessonId=${lesson.id}');
+    } on CourseApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) setState(() => _startingCourse = false);
+    }
+  }
+
+  CourseInfo? _findMockCourse(String id) {
+    for (final CourseInfo item in mockCourses) {
+      if (item.id == id) return item;
+    }
+    return null;
+  }
+
+  LessonInfo? _firstAvailableLesson(CourseInfo course) {
+    final CourseModule? module = _activeModule(course);
+    if (module == null || module.lessons.isEmpty) return null;
+    final int index = (module.progress * module.lessons.length).round().clamp(
+      0,
+      module.lessons.length - 1,
+    );
+    return module.lessons[index];
+  }
+
+  CourseModule? _activeModule(CourseInfo course) {
+    if (course.modules.isEmpty) return null;
+    return course.modules.firstWhere(
+      (CourseModule module) => module.progress < 1,
+      orElse: () => course.modules.last,
     );
   }
 }
@@ -99,30 +184,36 @@ class _CourseSummaryCard extends StatelessWidget {
             course.title,
             style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
           ),
-          const SizedBox(height: 6),
-          Text(
-            course.description,
-            style: const TextStyle(color: AppColors.textSecondary),
-          ),
+          if (course.description.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              course.description,
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+          ],
           const SizedBox(height: 14),
           Row(
             children: [
-              const Icon(Icons.star, size: 20, color: Color(0xFFF4B400)),
-              const SizedBox(width: 6),
-              const Text(
-                '4.8',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(width: 14),
               const Icon(
-                Icons.group_outlined,
+                Icons.layers_outlined,
                 size: 20,
                 color: Color(0xFF475467),
               ),
               const SizedBox(width: 5),
-              const Text(
-                '1,234 студентов',
-                style: TextStyle(fontSize: 15, color: Color(0xFF344054)),
+              Text(
+                '${course.modules.length} мод.',
+                style: const TextStyle(fontSize: 15, color: Color(0xFF344054)),
+              ),
+              const SizedBox(width: 14),
+              const Icon(
+                Icons.menu_book_outlined,
+                size: 20,
+                color: Color(0xFF475467),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                '${course.lessonCount} уроков',
+                style: const TextStyle(fontSize: 15, color: Color(0xFF344054)),
               ),
               const Spacer(),
               const Icon(
@@ -132,7 +223,7 @@ class _CourseSummaryCard extends StatelessWidget {
               ),
               const SizedBox(width: 5),
               Text(
-                '${(course.totalMinutes / 60).toStringAsFixed(1)} часа',
+                '${(course.totalMinutes / 60).toStringAsFixed(1)} ч',
                 style: const TextStyle(fontSize: 15, color: Color(0xFF344054)),
               ),
             ],
@@ -141,18 +232,18 @@ class _CourseSummaryCard extends StatelessWidget {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: const [
+            children: [
               _TagPill(
-                text: 'Популярный',
-                bg: Color(0xFFD7F5E6),
-                fg: Color(0xFF027A48),
+                text: course.level.isEmpty ? 'Курс' : course.level,
+                bg: const Color(0xFFECE7FF),
+                fg: const Color(0xFF7F56D9),
               ),
               _TagPill(
-                text: 'Начальный',
-                bg: Color(0xFFECE7FF),
-                fg: Color(0xFF7F56D9),
+                text: statusLabel(course.status),
+                bg: const Color(0xFFD7F5E6),
+                fg: const Color(0xFF027A48),
               ),
-              _TagPill(
+              const _TagPill(
                 text: 'Сертификат',
                 bg: Color(0xFFFEF0C7),
                 fg: Color(0xFFB54708),
@@ -160,6 +251,34 @@ class _CourseSummaryCard extends StatelessWidget {
               ),
             ],
           ),
+          if (course.goals.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            const Text(
+              'Цели',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            ...course.goals.map(
+              (String goal) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 5),
+                      child: Icon(
+                        Icons.circle,
+                        size: 7,
+                        color: AppColors.brandPrimary,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(goal)),
+                  ],
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           Row(
             children: [
@@ -244,12 +363,14 @@ class _ModuleCard extends StatelessWidget {
     required this.moduleIndex,
     required this.course,
     required this.onStartLesson,
+    required this.onStartTest,
   });
 
   final CourseModule module;
   final int moduleIndex;
   final CourseInfo course;
-  final VoidCallback onStartLesson;
+  final ValueChanged<LessonInfo> onStartLesson;
+  final VoidCallback? onStartTest;
 
   @override
   Widget build(BuildContext context) {
@@ -277,7 +398,7 @@ class _ModuleCard extends StatelessWidget {
                 child: Text(
                   module.title,
                   style: const TextStyle(
-                    fontSize: 21 / 1.3,
+                    fontSize: 16,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -315,9 +436,20 @@ class _ModuleCard extends StatelessWidget {
               lesson: lesson,
               state: state,
               showAction: state == _LessonState.current,
-              onTapAction: onStartLesson,
+              onTapAction: () => onStartLesson(lesson),
             );
           }),
+          if (!isLockedModule && totalLessons > 0) ...[
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                onPressed: onStartTest,
+                icon: const Icon(Icons.quiz_outlined),
+                label: const Text('Тест модуля'),
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           const Divider(color: Color(0xFFE4E7EC), height: 1),
           const SizedBox(height: 14),
@@ -343,12 +475,8 @@ class _ModuleCard extends StatelessWidget {
     required int completedLessons,
     required int lessonIndex,
   }) {
-    if (isLockedModule) {
-      return _LessonState.locked;
-    }
-    if (lessonIndex < completedLessons) {
-      return _LessonState.completed;
-    }
+    if (isLockedModule) return _LessonState.locked;
+    if (lessonIndex < completedLessons) return _LessonState.completed;
     if (isActiveModule && lessonIndex == completedLessons) {
       return _LessonState.current;
     }
@@ -374,7 +502,6 @@ class _ModuleLessonRow extends StatelessWidget {
     final bool completed = state == _LessonState.completed;
     final bool current = state == _LessonState.current;
     final bool locked = state == _LessonState.locked;
-
     final Color textColor = locked
         ? const Color(0xFF98A2B3)
         : const Color(0xFF101828);
@@ -456,24 +583,55 @@ class _ModuleLessonRow extends StatelessWidget {
   }
 }
 
+class _LoadErrorBanner extends StatelessWidget {
+  const _LoadErrorBanner({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF3F2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFDA29B)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, color: Color(0xFFB42318), size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Color(0xFFB42318), fontSize: 12),
+            ),
+          ),
+          TextButton(onPressed: onRetry, child: const Text('Повторить')),
+        ],
+      ),
+    );
+  }
+}
+
 enum _LessonState { completed, current, locked }
 
 double _courseProgress(CourseInfo course) {
-  if (course.modules.isEmpty) {
-    return 0;
-  }
+  if (course.modules.isEmpty) return 0;
   final double sum = course.modules.fold<double>(
     0,
     (double total, CourseModule module) => total + module.progress,
   );
-  return (sum / course.modules.length).clamp(0, 1);
+  return (sum / course.modules.length).clamp(0, 1).toDouble();
 }
 
 int _activeModuleIndex(CourseInfo course) {
   for (int i = 0; i < course.modules.length; i++) {
-    if (course.modules[i].progress < 1) {
-      return i;
-    }
+    if (course.modules[i].progress < 1) return i;
   }
   return course.modules.isEmpty ? 0 : course.modules.length - 1;
 }

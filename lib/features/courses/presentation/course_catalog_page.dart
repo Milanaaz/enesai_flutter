@@ -1,5 +1,6 @@
 import 'package:dipl/app/app_colors.dart';
 import 'package:dipl/app/widgets/main_bottom_nav.dart';
+import 'package:dipl/features/courses/presentation/data/course_api_service.dart';
 import 'package:dipl/features/courses/presentation/data/mock_courses.dart';
 import 'package:dipl/features/courses/presentation/models/course_models.dart';
 import 'package:flutter/material.dart';
@@ -19,6 +20,7 @@ class _CourseCatalogPageState extends State<CourseCatalogPage>
     vsync: this,
   )..addListener(() => setState(() {}));
   final TextEditingController _searchController = TextEditingController();
+  late Future<List<CourseInfo>> _coursesFuture;
   String _search = '';
   String? _selectedLevel;
   CourseType? _selectedType;
@@ -27,11 +29,16 @@ class _CourseCatalogPageState extends State<CourseCatalogPage>
   @override
   void initState() {
     super.initState();
+    _coursesFuture = _loadCourses();
     _searchController.addListener(() {
       setState(() {
         _search = _searchController.text.trim().toLowerCase();
       });
     });
+  }
+
+  Future<List<CourseInfo>> _loadCourses() {
+    return CourseApiService.instance.getCourses();
   }
 
   @override
@@ -43,100 +50,131 @@ class _CourseCatalogPageState extends State<CourseCatalogPage>
 
   @override
   Widget build(BuildContext context) {
-    final List<CourseInfo> filtered = mockCourses
-        .where(_matchesTab)
-        .where(_matchesSearch)
-        .where(_matchesFilter)
-        .toList();
     return Scaffold(
       appBar: AppBar(title: const Text('Курсы'), centerTitle: false),
       body: SafeArea(
-        child: Column(
-          children: [
-            TabBar(
-              controller: _tabController,
-              labelColor: AppColors.brandPrimary,
-              indicatorColor: AppColors.brandPrimary,
-              unselectedLabelColor: AppColors.textPrimary,
-              tabs: const [
-                Tab(text: 'Все'),
-                Tab(text: 'Мои курсы'),
-                Tab(text: 'Завершенные'),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Поиск курсов...',
-                        filled: true,
-                        fillColor: const Color(0xFFF2F3F8),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.search,
-                          color: Color(0xFF98A0B3),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  InkWell(
-                    onTap: _openFilterSheet,
-                    borderRadius: BorderRadius.circular(14),
-                    child: Ink(
-                      width: 50,
-                      height: 46,
-                      decoration: BoxDecoration(
-                        color: AppColors.brandPrimary,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Icon(
-                        Icons.filter_alt_outlined,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (_hasSelectedFilters)
-              SizedBox(
-                height: 32,
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  scrollDirection: Axis.horizontal,
-                  children: _selectedFilterChips(),
+        child: FutureBuilder<List<CourseInfo>>(
+          future: _coursesFuture,
+          builder: (context, snapshot) {
+            final List<CourseInfo> source = snapshot.hasData
+                ? snapshot.data!
+                : mockCourses;
+            final List<CourseInfo> filtered = source
+                .where(_matchesTab)
+                .where(_matchesSearch)
+                .where(_matchesFilter)
+                .toList();
+
+            return Column(
+              children: [
+                TabBar(
+                  controller: _tabController,
+                  labelColor: AppColors.brandPrimary,
+                  indicatorColor: AppColors.brandPrimary,
+                  unselectedLabelColor: AppColors.textPrimary,
+                  tabs: const [
+                    Tab(text: 'Все'),
+                    Tab(text: 'Мои курсы'),
+                    Tab(text: 'Завершенные'),
+                  ],
                 ),
-              ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: filtered.isEmpty
-                  ? const _EmptyState()
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 6, 16, 20),
-                      itemCount: filtered.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final CourseInfo course = filtered[index];
-                        return _CourseCard(
-                          course: course,
-                          onTap: () => context.push('/courses/${course.id}'),
-                        );
-                      },
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            hintText: 'Поиск курсов...',
+                            filled: true,
+                            fillColor: const Color(0xFFF2F3F8),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
+                            prefixIcon: const Icon(
+                              Icons.search,
+                              color: Color(0xFF98A0B3),
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      InkWell(
+                        onTap: _openFilterSheet,
+                        borderRadius: BorderRadius.circular(14),
+                        child: Ink(
+                          width: 50,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: AppColors.brandPrimary,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Icon(
+                            Icons.filter_alt_outlined,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (snapshot.hasError)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: _LoadErrorBanner(
+                      message: snapshot.error.toString(),
+                      onRetry: () => setState(() {
+                        _coursesFuture = _loadCourses();
+                      }),
                     ),
-            ),
-          ],
+                  ),
+                if (snapshot.connectionState == ConnectionState.waiting)
+                  const LinearProgressIndicator(minHeight: 2),
+                if (_hasSelectedFilters)
+                  SizedBox(
+                    height: 32,
+                    child: ListView(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      scrollDirection: Axis.horizontal,
+                      children: _selectedFilterChips(),
+                    ),
+                  ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: filtered.isEmpty
+                      ? const _EmptyState()
+                      : RefreshIndicator(
+                          onRefresh: () async {
+                            final Future<List<CourseInfo>> future =
+                                _loadCourses();
+                            setState(() => _coursesFuture = future);
+                            await future;
+                          },
+                          child: ListView.separated(
+                            padding: const EdgeInsets.fromLTRB(16, 6, 16, 20),
+                            itemCount: filtered.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              final CourseInfo course = filtered[index];
+                              return _CourseCard(
+                                course: course,
+                                onTap: () =>
+                                    context.push('/courses/${course.id}'),
+                              );
+                            },
+                          ),
+                        ),
+                ),
+              ],
+            );
+          },
         ),
       ),
       bottomNavigationBar: const MainBottomNav(currentIndex: 1),
@@ -159,9 +197,7 @@ class _CourseCatalogPageState extends State<CourseCatalogPage>
   }
 
   bool _matchesSearch(CourseInfo course) {
-    if (_search.isEmpty) {
-      return true;
-    }
+    if (_search.isEmpty) return true;
     return course.title.toLowerCase().contains(_search) ||
         course.description.toLowerCase().contains(_search);
   }
@@ -226,9 +262,7 @@ class _CourseCatalogPageState extends State<CourseCatalogPage>
         );
       },
     );
-    if (result == null) {
-      return;
-    }
+    if (result == null) return;
     setState(() {
       _selectedLevel = result.level;
       _selectedType = result.type;
@@ -340,20 +374,48 @@ class _CourseCard extends StatelessWidget {
   }
 
   double _courseProgress() {
-    if (course.status == CourseStatus.completed) {
-      return 1;
-    }
-    if (course.status == CourseStatus.notStarted) {
-      return 0;
-    }
-    if (course.modules.isEmpty) {
-      return .45;
-    }
+    if (course.status == CourseStatus.completed) return 1;
+    if (course.status == CourseStatus.notStarted) return 0;
+    if (course.modules.isEmpty) return .45;
     final double sum = course.modules.fold<double>(
       0,
       (double total, CourseModule module) => total + module.progress,
     );
-    return sum / course.modules.length;
+    return (sum / course.modules.length).clamp(0, 1).toDouble();
+  }
+}
+
+class _LoadErrorBanner extends StatelessWidget {
+  const _LoadErrorBanner({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF3F2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFDA29B)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, color: Color(0xFFB42318), size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Color(0xFFB42318), fontSize: 12),
+            ),
+          ),
+          TextButton(onPressed: onRetry, child: const Text('Повторить')),
+        ],
+      ),
+    );
   }
 }
 

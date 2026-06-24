@@ -42,8 +42,8 @@ class MainBottomNav extends StatelessWidget {
             label: '\u0413\u043b\u0430\u0432\u043d\u0430\u044f',
           ),
           BottomNavigationBarItem(
-            icon: _InactiveNavIcon(icon: Icons.menu_book_outlined),
-            activeIcon: _ActiveNavIcon(icon: Icons.menu_book_outlined),
+            icon: _InactiveNavIcon(icon: Icons.school_outlined),
+            activeIcon: _ActiveNavIcon(icon: Icons.school_outlined),
             label: '\u041a\u0443\u0440\u0441\u044b',
           ),
           BottomNavigationBarItem(
@@ -102,9 +102,7 @@ class _InactiveNavIcon extends StatelessWidget {
     return SizedBox(
       width: 40,
       height: 40,
-      child: Center(
-        child: Icon(icon, size: 22),
-      ),
+      child: Center(child: Icon(icon, size: 22)),
     );
   }
 }

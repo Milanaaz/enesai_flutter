@@ -1,5 +1,6 @@
 import 'package:dipl/app/app_colors.dart';
 import 'package:dipl/app/widgets/main_bottom_nav.dart';
+import 'package:dipl/features/user/data/user_api_service.dart';
 import 'package:dipl/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -29,20 +30,93 @@ class _ProfilePageState extends State<ProfilePage> {
     final String? rawEmail = await AuthService.instance.getRegisteredEmail();
     final String? rawLevel = await AuthService.instance.getSelectedLevel();
     final String? rawGoalType = await AuthService.instance.getGoalType();
-    final String userName = (rawName ?? '').trim().isNotEmpty
+    UserProfile? profile;
+    UserAnalytics? analytics;
+    UserStats? stats;
+    List<CertificateInfo> certificates = const <CertificateInfo>[];
+    List<AchievementInfo> achievements = const <AchievementInfo>[];
+    List<LeaderboardEntry> leaderboard = const <LeaderboardEntry>[];
+    String placementLevel = '';
+
+    try {
+      profile = await UserApiService.instance.getMyProfile();
+      if (profile.fullName.trim().isNotEmpty) {
+        await AuthService.instance.saveRegisteredName(profile.fullName);
+      }
+      if (profile.languageLevel.trim().isNotEmpty) {
+        await AuthService.instance.saveSelectedLevel(profile.languageLevel);
+      }
+      if (profile.goalType.trim().isNotEmpty) {
+        await AuthService.instance.saveGoalType(profile.goalType);
+      }
+    } on UserApiException {
+      profile = null;
+    }
+    try {
+      analytics = await UserApiService.instance.getMyAnalytics();
+    } on UserApiException {
+      analytics = null;
+    }
+    try {
+      stats = await UserApiService.instance.getMyStats();
+    } on UserApiException {
+      stats = null;
+    }
+    try {
+      certificates = await UserApiService.instance.getMyCertificates();
+    } on UserApiException {
+      certificates = const <CertificateInfo>[];
+    }
+    try {
+      achievements = await UserApiService.instance.getAchievements();
+    } on UserApiException {
+      achievements = const <AchievementInfo>[];
+    }
+    try {
+      leaderboard = await UserApiService.instance.getLeaderboard();
+    } on UserApiException {
+      leaderboard = const <LeaderboardEntry>[];
+    }
+    try {
+      placementLevel = (await UserApiService.instance.getMyPlacementResult())
+          .determinedLevel;
+    } on UserApiException {
+      placementLevel = '';
+    }
+
+    final String userName = profile?.fullName.trim().isNotEmpty == true
+        ? profile!.fullName
+        : (rawName ?? '').trim().isNotEmpty
         ? rawName!.trim()
         : 'Milana';
-    final String email = (rawEmail ?? '').trim().isNotEmpty
+    final String email = profile?.email.trim().isNotEmpty == true
+        ? profile!.email
+        : (rawEmail ?? '').trim().isNotEmpty
         ? rawEmail!.trim()
         : 'example@gmail.com';
-    final String level = (rawLevel ?? '').trim().isNotEmpty
+    final String level = profile?.languageLevel.trim().isNotEmpty == true
+        ? profile!.languageLevel
+        : placementLevel.trim().isNotEmpty
+        ? placementLevel.trim()
+        : (rawLevel ?? '').trim().isNotEmpty
         ? rawLevel!.trim()
         : 'A1';
     return _ProfileInfo(
       userName: userName,
       email: email,
       level: level,
-      goalTitle: _goalTitleFromType(rawGoalType),
+      goalTitle: _goalTitleFromType(profile?.goalType ?? rawGoalType),
+      points: analytics?.xp ?? stats?.xp ?? 1245,
+      learningDays: analytics?.streakDays ?? stats?.streakDays ?? 12,
+      lessonsCompleted:
+          analytics?.lessonsCompleted ?? stats?.lessonsCompleted ?? 34,
+      wordsLearned: analytics?.learnedWords ?? stats?.wordsLearned ?? 412,
+      testsPassed: analytics?.testsPassed ?? stats?.testsPassed ?? 0,
+      leaderboardRank:
+          analytics?.leaderboardRank ?? stats?.leaderboardRank ?? 0,
+      certificates: certificates,
+      achievements: achievements,
+      leaderboard: leaderboard,
     );
   }
 
@@ -53,138 +127,194 @@ class _ProfilePageState extends State<ProfilePage> {
       body: SafeArea(
         child: FutureBuilder<_ProfileInfo>(
           future: _profileInfoFuture ??= _loadProfileInfo(),
-          builder:
-              (BuildContext context, AsyncSnapshot<_ProfileInfo> snapshot) {
-                final _ProfileInfo info =
-                    snapshot.data ??
-                    const _ProfileInfo(
-                      userName: 'Milana',
-                      email: 'example@gmail.com',
-                      level: 'A1',
-                      goalTitle: 'Выучить кыргызский',
-                    );
-
-                return ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-                  children: [
-                    _ProfileHeader(
-                      userName: info.userName,
-                      email: info.email,
-                      level: info.level,
-                      points: '1 245',
-                      learningDays: '12',
-                    ),
-                    const SizedBox(height: 12),
-                    const _BlockTitle('Мои курсы'),
-                    const SizedBox(height: 8),
-                    _InfoCard(
-                      child: _CourseTile(
-                        title: 'Основы кыргызского языка',
-                        subtitle: 'Прогресс: 75% • 9 из 12 уроков',
-                        progress: 0.75,
-                        onTap: () {},
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const _BlockTitle('Сертификаты'),
-                    const SizedBox(height: 8),
-                    _InfoCard(
-                      child: _SimpleInfoTile(
-                        icon: Icons.workspace_premium_outlined,
-                        title: 'Сертификаты',
-                        subtitle: '2 получено • 1 в процессе',
-                        onTap: () {},
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const _BlockTitle('Прогресс обучения'),
-                    const SizedBox(height: 8),
-                    _InfoCard(
-                      child: Column(
-                        children: const [
-                          _ProgressRow(label: 'Завершено уроков', value: '34'),
-                          SizedBox(height: 10),
-                          _ProgressRow(label: 'Выучено слов', value: '412'),
-                          SizedBox(height: 10),
-                          _ProgressRow(
-                            label: 'Текущая серия',
-                            value: '12 дней',
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const _BlockTitle('Настройки'),
-                    const SizedBox(height: 8),
-                    _InfoCard(
-                      child: Column(
-                        children: [
-                          _SettingsValueTile(
-                            icon: Icons.language_outlined,
-                            title: 'Язык интерфейса',
-                            value: _interfaceLanguage,
-                            onTap: _changeInterfaceLanguage,
-                          ),
-                          const Divider(height: 20, color: AppColors.divider),
-                          _SettingsValueTile(
-                            icon: Icons.flag_outlined,
-                            title: 'Цель обучения',
-                            value: info.goalTitle,
-                            onTap: _changeLearningGoal,
-                          ),
-                          const Divider(height: 20, color: AppColors.divider),
-                          _SettingsValueTile(
-                            icon: Icons.track_changes_outlined,
-                            title: 'Пройти тест уровня заново',
-                            value: 'Открыть',
-                            onTap: _retakePlacementTest,
-                          ),
-                          const Divider(height: 20, color: AppColors.divider),
-                          _SettingsSwitchTile(
-                            icon: Icons.notifications_outlined,
-                            title: 'Уведомления и напоминания',
-                            value: _notificationsEnabled,
-                            onChanged: (bool value) {
-                              setState(() => _notificationsEnabled = value);
-                            },
-                          ),
-                          const Divider(height: 20, color: AppColors.divider),
-                          _SettingsValueTile(
-                            icon: Icons.access_time_outlined,
-                            title: 'Время напоминаний',
-                            value: _reminderTime.format(context),
-                            onTap: _pickReminderTime,
-                          ),
-                          const Divider(height: 20, color: AppColors.divider),
-                          _SettingsSwitchTile(
-                            icon: Icons.volume_up_outlined,
-                            title: 'Звук',
-                            value: _soundEnabled,
-                            onChanged: (bool value) {
-                              setState(() => _soundEnabled = value);
-                            },
-                          ),
-                          const Divider(height: 20, color: AppColors.divider),
-                          _SettingsValueTile(
-                            icon: Icons.lock_outline,
-                            title: 'Сменить пароль',
-                            value: 'Изменить',
-                            onTap: _openChangePasswordDialog,
-                          ),
-                          const Divider(height: 20, color: AppColors.divider),
-                          _SettingsValueTile(
-                            icon: Icons.logout,
-                            title: 'Выйти из аккаунта',
-                            value: 'Выйти',
-                            isDestructive: true,
-                            onTap: _logout,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+          builder: (BuildContext context, AsyncSnapshot<_ProfileInfo> snapshot) {
+            final _ProfileInfo info =
+                snapshot.data ??
+                const _ProfileInfo(
+                  userName: 'Milana',
+                  email: 'example@gmail.com',
+                  level: 'A1',
+                  goalTitle: 'Выучить кыргызский',
+                  points: 1245,
+                  learningDays: 12,
+                  lessonsCompleted: 34,
+                  wordsLearned: 412,
+                  testsPassed: 0,
+                  leaderboardRank: 0,
+                  certificates: <CertificateInfo>[],
+                  achievements: <AchievementInfo>[],
+                  leaderboard: <LeaderboardEntry>[],
                 );
-              },
+
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+              children: [
+                _ProfileHeader(
+                  userName: info.userName,
+                  email: info.email,
+                  level: info.level,
+                  points: _formatNumber(info.points),
+                  learningDays: info.learningDays.toString(),
+                ),
+                const SizedBox(height: 12),
+                const _BlockTitle('Мои курсы'),
+                const SizedBox(height: 8),
+                _InfoCard(
+                  child: _CourseTile(
+                    title: 'Основы кыргызского языка',
+                    subtitle: 'Прогресс: 75% • 9 из 12 уроков',
+                    progress: 0.75,
+                    onTap: () {},
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const _BlockTitle('Сертификаты'),
+                const SizedBox(height: 8),
+                _InfoCard(
+                  child: _SimpleInfoTile(
+                    icon: Icons.workspace_premium_outlined,
+                    title: 'Сертификаты',
+                    subtitle: '${info.certificates.length} получено',
+                    onTap: () => context.push('/courses'),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const _BlockTitle('Прогресс обучения'),
+                const SizedBox(height: 8),
+                _InfoCard(
+                  child: Column(
+                    children: [
+                      _ProgressRow(
+                        label: 'Завершено уроков',
+                        value: info.lessonsCompleted.toString(),
+                      ),
+                      const SizedBox(height: 10),
+                      _ProgressRow(
+                        label: 'Выучено слов',
+                        value: info.wordsLearned.toString(),
+                      ),
+                      const SizedBox(height: 10),
+                      _ProgressRow(
+                        label: 'Текущая серия',
+                        value: '${info.learningDays} дней',
+                      ),
+                      const SizedBox(height: 10),
+                      _ProgressRow(
+                        label: 'Тестов пройдено',
+                        value: info.testsPassed.toString(),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const _BlockTitle('Достижения'),
+                const SizedBox(height: 8),
+                _InfoCard(
+                  child: _ApiSummaryTile(
+                    icon: Icons.emoji_events_outlined,
+                    title: 'Получено достижений',
+                    value:
+                        '${info.achievements.where((AchievementInfo item) => item.earned).length}/${info.achievements.length}',
+                    subtitle: info.achievements.isEmpty
+                        ? 'Достижения появятся после активности'
+                        : info.achievements
+                              .where((AchievementInfo item) => item.earned)
+                              .map((AchievementInfo item) => item.title)
+                              .take(2)
+                              .join(', '),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const _BlockTitle('Рейтинг'),
+                const SizedBox(height: 8),
+                _InfoCard(
+                  child: _ApiSummaryTile(
+                    icon: Icons.leaderboard_outlined,
+                    title: info.leaderboardRank > 0
+                        ? 'Ваше место: ${info.leaderboardRank}'
+                        : 'Таблица лидеров',
+                    value: info.leaderboard.length.toString(),
+                    subtitle: info.leaderboard.isEmpty
+                        ? 'Пока нет данных рейтинга'
+                        : info.leaderboard
+                              .take(3)
+                              .map(
+                                (LeaderboardEntry item) =>
+                                    '#${item.rank} ${item.name}',
+                              )
+                              .join('  '),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _InfoCard(
+                  child: Column(
+                    children: [
+                      _SettingsValueTile(
+                        icon: Icons.language_outlined,
+                        title: 'Язык интерфейса',
+                        value: _interfaceLanguage,
+                        onTap: _changeInterfaceLanguage,
+                      ),
+                      const Divider(height: 20, color: AppColors.divider),
+                      _SettingsValueTile(
+                        icon: Icons.flag_outlined,
+                        title: 'Цель обучения',
+                        value: info.goalTitle,
+                        onTap: _changeLearningGoal,
+                      ),
+                      const Divider(height: 20, color: AppColors.divider),
+                      _SettingsValueTile(
+                        icon: Icons.track_changes_outlined,
+                        title: 'Пройти тест уровня заново',
+                        value: 'Открыть',
+                        onTap: _retakePlacementTest,
+                      ),
+                      const Divider(height: 20, color: AppColors.divider),
+                      _SettingsSwitchTile(
+                        icon: Icons.notifications_outlined,
+                        title: 'Уведомления и напоминания',
+                        value: _notificationsEnabled,
+                        onChanged: (bool value) {
+                          setState(() => _notificationsEnabled = value);
+                        },
+                      ),
+                      const Divider(height: 20, color: AppColors.divider),
+                      _SettingsValueTile(
+                        icon: Icons.access_time_outlined,
+                        title: 'Время напоминаний',
+                        value: _reminderTime.format(context),
+                        onTap: _pickReminderTime,
+                      ),
+                      const Divider(height: 20, color: AppColors.divider),
+                      _SettingsSwitchTile(
+                        icon: Icons.volume_up_outlined,
+                        title: 'Звук',
+                        value: _soundEnabled,
+                        onChanged: (bool value) {
+                          setState(() => _soundEnabled = value);
+                        },
+                      ),
+                      const Divider(height: 20, color: AppColors.divider),
+                      _SettingsValueTile(
+                        icon: Icons.lock_outline,
+                        title: 'Сменить пароль',
+                        value: 'Изменить',
+                        onTap: _openChangePasswordDialog,
+                      ),
+                      const Divider(height: 20, color: AppColors.divider),
+                      _SettingsValueTile(
+                        icon: Icons.logout,
+                        title: 'Выйти из аккаунта',
+                        value: 'Выйти',
+                        isDestructive: true,
+                        onTap: _logout,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
       bottomNavigationBar: const MainBottomNav(currentIndex: 4),
@@ -585,18 +715,43 @@ String _goalTypeFromCode(String code) {
   }
 }
 
+String _formatNumber(int value) {
+  return value.toString().replaceAllMapped(
+    RegExp(r'\B(?=(\d{3})+(?!\d))'),
+    (_) => ' ',
+  );
+}
+
 class _ProfileInfo {
   const _ProfileInfo({
     required this.userName,
     required this.email,
     required this.level,
     required this.goalTitle,
+    required this.points,
+    required this.learningDays,
+    required this.lessonsCompleted,
+    required this.wordsLearned,
+    required this.testsPassed,
+    required this.leaderboardRank,
+    required this.certificates,
+    required this.achievements,
+    required this.leaderboard,
   });
 
   final String userName;
   final String email;
   final String level;
   final String goalTitle;
+  final int points;
+  final int learningDays;
+  final int lessonsCompleted;
+  final int wordsLearned;
+  final int testsPassed;
+  final int leaderboardRank;
+  final List<CertificateInfo> certificates;
+  final List<AchievementInfo> achievements;
+  final List<LeaderboardEntry> leaderboard;
 }
 
 class _ProfileHeader extends StatelessWidget {
@@ -876,6 +1031,55 @@ class _SimpleInfoTile extends StatelessWidget {
       subtitle: Text(subtitle),
       trailing: const Icon(Icons.chevron_right, color: Color(0xFF98A2B3)),
       onTap: onTap,
+    );
+  }
+}
+
+class _ApiSummaryTile extends StatelessWidget {
+  const _ApiSummaryTile({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String value;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, color: AppColors.brandPrimary),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+              if (subtitle.trim().isNotEmpty) ...[
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+        ),
+      ],
     );
   }
 }

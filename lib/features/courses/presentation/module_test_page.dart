@@ -1,104 +1,110 @@
 import 'package:dipl/app/app_colors.dart';
+import 'package:dipl/features/courses/presentation/data/course_api_service.dart';
+import 'package:dipl/features/courses/presentation/models/course_models.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class ModuleTestPage extends StatefulWidget {
-  const ModuleTestPage({required this.courseId, super.key});
+  const ModuleTestPage({required this.courseId, this.moduleId, super.key});
 
   final String courseId;
+  final String? moduleId;
 
   @override
   State<ModuleTestPage> createState() => _ModuleTestPageState();
 }
 
 class _ModuleTestPageState extends State<ModuleTestPage> {
-  final List<int?> _answers = <int?>[null, null, null];
+  final Map<String, String> _answers = <String, String>{};
   bool _timerEnabled = false;
+  bool _submitting = false;
+  late Future<TestInfo> _testFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _testFuture = _loadTest();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Тест по модулю')),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
-          children: [
-            SwitchListTile(
-              value: _timerEnabled,
-              onChanged: (bool value) => setState(() => _timerEnabled = value),
-              title: const Text('Включить таймер'),
-              subtitle: const Text('Опционально: 10 минут на весь тест'),
-              contentPadding: EdgeInsets.zero,
+    return FutureBuilder<TestInfo>(
+      future: _testFuture,
+      builder: (context, snapshot) {
+        final TestInfo? test = snapshot.data;
+        final bool ready =
+            test != null &&
+            test.questions.isNotEmpty &&
+            _answers.length == test.questions.length &&
+            !_submitting;
+
+        return Scaffold(
+          appBar: AppBar(title: Text(test?.title ?? 'Тест по модулю')),
+          body: SafeArea(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+              children: [
+                if (snapshot.connectionState == ConnectionState.waiting)
+                  const LinearProgressIndicator(minHeight: 2),
+                if (snapshot.hasError)
+                  _ErrorBanner(
+                    message: snapshot.error.toString(),
+                    onRetry: () => setState(() {
+                      _testFuture = _loadTest();
+                    }),
+                  ),
+                if (test != null) ...[
+                  SwitchListTile(
+                    value: _timerEnabled,
+                    onChanged: (bool value) =>
+                        setState(() => _timerEnabled = value),
+                    title: const Text('Включить таймер'),
+                    subtitle: Text(
+                      test.timeLimitMinutes > 0
+                          ? '${test.timeLimitMinutes} мин на весь тест'
+                          : 'Без ограничения времени',
+                    ),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  if (test.description.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      test.description,
+                      style: const TextStyle(color: AppColors.textSecondary),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  ...test.questions.map(_questionCard),
+                ],
+                if (test == null && !snapshot.hasError)
+                  const Text('Загрузка теста...'),
+              ],
             ),
-            const SizedBox(height: 8),
-            _TestQuestion(
-              title: '1. Выберите правильный вариант',
-              options: const <String>['Вариант A', 'Вариант B', 'Вариант C'],
-              selected: _answers[0],
-              onSelect: (int value) => setState(() => _answers[0] = value),
-            ),
-            _TestQuestion(
-              title: '2. Сопоставьте перевод',
-              options: const <String>['Слово 1', 'Слово 2', 'Слово 3'],
-              selected: _answers[1],
-              onSelect: (int value) => setState(() => _answers[1] = value),
-            ),
-            _TestQuestion(
-              title: '3. Аудирование с вопросом',
-              options: const <String>['Ответ 1', 'Ответ 2', 'Ответ 3'],
-              selected: _answers[2],
-              onSelect: (int value) => setState(() => _answers[2] = value),
-            ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        child: FilledButton(
-          onPressed: _answers.every((int? e) => e != null)
-              ? () {
-                  final int score = _computeScore();
-                  context.push(
-                    '/courses/${widget.courseId}/module-test/result?score=$score',
-                  );
-                }
-              : null,
-          style: FilledButton.styleFrom(
-            backgroundColor: AppColors.brandPrimary,
           ),
-          child: const Text('Завершить тест'),
-        ),
-      ),
+          bottomNavigationBar: SafeArea(
+            minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: FilledButton(
+              onPressed: ready ? () => _submit(test) : null,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.brandPrimary,
+              ),
+              child: Text(_submitting ? 'Отправка...' : 'Завершить тест'),
+            ),
+          ),
+        );
+      },
     );
   }
 
-  int _computeScore() {
-    final List<int> key = <int>[0, 1, 2];
-    int ok = 0;
-    for (int i = 0; i < _answers.length; i++) {
-      if (_answers[i] == key[i]) {
-        ok++;
-      }
+  Future<TestInfo> _loadTest() {
+    final String? moduleId = widget.moduleId;
+    if ((moduleId ?? '').isNotEmpty) {
+      return CourseApiService.instance.getModuleTest(moduleId!);
     }
-    return (ok / _answers.length * 100).round();
+    return CourseApiService.instance.getCourseTest(widget.courseId);
   }
-}
 
-class _TestQuestion extends StatelessWidget {
-  const _TestQuestion({
-    required this.title,
-    required this.options,
-    required this.selected,
-    required this.onSelect,
-  });
-
-  final String title;
-  final List<String> options;
-  final int? selected;
-  final ValueChanged<int> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _questionCard(TestQuestionInfo question) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -109,16 +115,22 @@ class _TestQuestion extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+          Text(
+            question.questionText,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 8),
-          ...List<Widget>.generate(options.length, (int index) {
-            final bool isSelected = selected == index;
+          ...question.options.map((AnswerOption option) {
+            final bool isSelected = _answers[question.id] == option.id;
             return InkWell(
-              onTap: () => onSelect(index),
+              onTap: () => setState(() => _answers[question.id] = option.id),
               borderRadius: BorderRadius.circular(10),
               child: Container(
                 margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
@@ -142,12 +154,63 @@ class _TestQuestion extends StatelessWidget {
                           : const Color(0xFF667085),
                     ),
                     const SizedBox(width: 8),
-                    Expanded(child: Text(options[index])),
+                    Expanded(child: Text(option.text)),
                   ],
                 ),
               ),
             );
           }),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _submit(TestInfo test) async {
+    setState(() => _submitting = true);
+    try {
+      final int score = await CourseApiService.instance.submitTest(
+        testId: test.id,
+        selectedOptionIds: _answers,
+      );
+      if (!mounted) return;
+      context.push(
+        '/courses/${widget.courseId}/module-test/result?score=$score',
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+}
+
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF3F2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFDA29B)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, color: Color(0xFFB42318), size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Color(0xFFB42318), fontSize: 12),
+            ),
+          ),
+          TextButton(onPressed: onRetry, child: const Text('Повторить')),
         ],
       ),
     );

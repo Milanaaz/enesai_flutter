@@ -78,6 +78,39 @@ class AuthService {
     }
   }
 
+  Future<void> verifyResetCode({
+    required String email,
+    required String code,
+  }) async {
+    try {
+      await _dio.get<dynamic>(
+        '/api/v1/auth/verify-reset-code',
+        queryParameters: <String, dynamic>{
+          'email': email.trim(),
+          'code': code.trim(),
+        },
+      );
+    } on DioException catch (error) {
+      throw AuthException(_extractErrorMessage(error));
+    }
+  }
+
+  Future<void> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    try {
+      await _postWithRetry('/api/v1/auth/reset-password', <String, dynamic>{
+        'email': email.trim(),
+        'code': code.trim(),
+        'newPassword': newPassword,
+      });
+    } on DioException catch (error) {
+      throw AuthException(_extractErrorMessage(error));
+    }
+  }
+
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
@@ -157,6 +190,22 @@ class AuthService {
   }
 
   Future<void> logout() async {
+    final String? accessToken = await getAccessToken();
+    if ((accessToken ?? '').trim().isNotEmpty) {
+      try {
+        await _postWithRetry(
+          '/api/v1/auth/logout',
+          const <String, dynamic>{},
+          options: Options(
+            headers: <String, dynamic>{
+              'Authorization': 'Bearer ${accessToken!.trim()}',
+            },
+          ),
+        );
+      } on DioException {
+        // Local token cleanup below is still required even if server logout fails.
+      }
+    }
     final SharedPreferences preferences = await SharedPreferences.getInstance();
     await preferences.remove(_accessTokenKey);
     await preferences.remove(_refreshTokenKey);
@@ -301,6 +350,9 @@ class AuthService {
     if (_isTimeout(error)) {
       return 'Сервер долго отвечает. Попробуйте снова через 5-10 секунд.';
     }
+    if (_isConnectionBlocked(error)) {
+      return 'Не удалось подключиться к серверу. Проверьте, что backend запущен и разрешает запросы с этого сайта.';
+    }
     final dynamic responseData = error.response?.data;
     if (responseData is Map<String, dynamic>) {
       final dynamic message = responseData['message'];
@@ -344,6 +396,15 @@ class AuthService {
     return error.type == DioExceptionType.connectionTimeout ||
         error.type == DioExceptionType.sendTimeout ||
         error.type == DioExceptionType.receiveTimeout;
+  }
+
+  bool _isConnectionBlocked(DioException error) {
+    final String message = error.message ?? '';
+    return error.response == null &&
+        (error.type == DioExceptionType.connectionError ||
+            error.type == DioExceptionType.unknown ||
+            message.contains('XMLHttpRequest') ||
+            message.contains('onError'));
   }
 
   String _normalizeNameFromParts(String firstName, String lastName) {

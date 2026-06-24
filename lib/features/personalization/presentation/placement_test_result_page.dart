@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dipl/app/app_colors.dart';
 import 'package:dipl/features/personalization/data/placement_test_models.dart';
+import 'package:dipl/features/user/data/user_api_service.dart';
 import 'package:dipl/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -40,9 +41,19 @@ class _PlacementTestResultPageState extends State<PlacementTestResultPage> {
     await AuthService.instance.saveGoalType(goalType);
 
     unawaited(
-      AuthService.instance
-          .updateOnboardingProfile(languageLevel: level, goalType: goalType)
-          .catchError((Object _) {}),
+      Future.wait(<Future<void>>[
+        UserApiService.instance
+            .completeOnboarding(
+              goalType: goalType,
+              selectedLevel: level,
+              skipTest: false,
+            )
+            .then((_) {}),
+        AuthService.instance.updateOnboardingProfile(
+          languageLevel: level,
+          goalType: goalType,
+        ),
+      ]).catchError((Object _) => <void>[]),
     );
 
     if (!mounted) return;

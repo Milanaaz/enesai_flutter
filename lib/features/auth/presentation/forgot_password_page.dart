@@ -1,4 +1,4 @@
-﻿import 'package:dipl/app/app_colors.dart';
+import 'package:dipl/app/app_colors.dart';
 import 'package:dipl/features/auth/presentation/widgets/auth_page_shell.dart';
 import 'package:dipl/features/auth/presentation/widgets/auth_text_field.dart';
 import 'package:dipl/services/auth_service.dart';
@@ -15,12 +15,17 @@ class ForgotPasswordPage extends StatefulWidget {
 class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _codeController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
   bool _isSubmitting = false;
+  bool _codeSent = false;
 
   @override
   void dispose() {
     _emailController.dispose();
+    _codeController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -33,9 +38,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Инструкция для сброса пароля отправлена на вашу почту.'),
+          content: Text(
+            'Инструкция для сброса пароля отправлена на вашу почту.',
+          ),
         ),
       );
+      setState(() => _codeSent = true);
     } on AuthException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -45,6 +53,35 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       if (mounted) {
         setState(() => _isSubmitting = false);
       }
+    }
+  }
+
+  Future<void> _resetPassword() async {
+    if (!(_formKey.currentState?.validate() ?? false) || _isSubmitting) return;
+
+    setState(() => _isSubmitting = true);
+    try {
+      await AuthService.instance.verifyResetCode(
+        email: _emailController.text,
+        code: _codeController.text,
+      );
+      await AuthService.instance.resetPassword(
+        email: _emailController.text,
+        code: _codeController.text,
+        newPassword: _passwordController.text,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Пароль обновлен. Войдите заново.')),
+      );
+      context.go('/login');
+    } on AuthException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
@@ -75,11 +112,48 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             },
           ),
         ),
+        if (_codeSent) ...[
+          const SizedBox(height: 14),
+          AuthTextField(
+            label: 'Код',
+            hint: '6 цифр',
+            controller: _codeController,
+            keyboardType: TextInputType.number,
+            textInputAction: TextInputAction.next,
+            prefixIcon: Icons.password_outlined,
+            validator: (value) {
+              final String code = value?.trim() ?? '';
+              if (!_codeSent) return null;
+              if (code.length != 6) return 'Введите код из 6 символов';
+              return null;
+            },
+          ),
+          const SizedBox(height: 14),
+          AuthTextField(
+            label: 'Новый пароль',
+            hint: 'Минимум 8 символов',
+            controller: _passwordController,
+            obscureText: true,
+            textInputAction: TextInputAction.done,
+            prefixIcon: Icons.lock_outline,
+            validator: (value) {
+              if (!_codeSent) return null;
+              if ((value ?? '').length < 8) {
+                return 'Минимум 8 символов';
+              }
+              return null;
+            },
+          ),
+        ],
         const SizedBox(height: 18),
         SizedBox(
           width: double.infinity,
           child: FilledButton(
-            onPressed: _isSubmitting ? null : _submit,
+            onPressed: _isSubmitting
+                ? null
+                : _codeSent
+                ? _resetPassword
+                : _submit,
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.brandPrimary,
               foregroundColor: Colors.white,
@@ -94,8 +168,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text(
-                    'Отправить инструкцию',
+                : Text(
+                    _codeSent ? 'Сбросить пароль' : 'Отправить инструкцию',
                     style: TextStyle(fontWeight: FontWeight.w700),
                   ),
           ),

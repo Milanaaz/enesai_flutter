@@ -1,5 +1,6 @@
 import 'package:dipl/app/app_colors.dart';
 import 'package:dipl/features/personalization/presentation/widgets/personalization_option_tile.dart';
+import 'package:dipl/features/user/data/user_api_service.dart';
 import 'package:dipl/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -59,15 +60,25 @@ class _LevelSelectionPageState extends State<LevelSelectionPage> {
         : 'A1';
     final String goalType = _goalTypeFromCode(widget.goalCode);
     try {
+      await UserApiService.instance.completeOnboarding(
+        goalType: goalType,
+        selectedLevel: levelToStore,
+        skipTest: true,
+      );
       await AuthService.instance.updateOnboardingProfile(
         languageLevel: levelToStore,
         goalType: goalType,
       );
-    } on AuthException catch (error) {
+    } on Object catch (error) {
       if (!mounted) return;
+      final String message = error is UserApiException
+          ? error.message
+          : error is AuthException
+          ? error.message
+          : error.toString();
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
+      ).showSnackBar(SnackBar(content: Text(message)));
       return;
     }
     if (!mounted) return;
