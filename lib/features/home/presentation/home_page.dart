@@ -323,15 +323,19 @@ class _CurrentCourseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final int percent = course?.progressPercent.clamp(0, 100) ?? 75;
-    final int completedLessons = course?.completedLessons ?? 9;
-    final int totalLessons = course?.totalLessons ?? 12;
+    final bool hasCourse = course != null;
+    final int percent = course?.progressPercent.clamp(0, 100) ?? 0;
+    final int completedLessons = course?.completedLessons ?? 0;
+    final int totalLessons = course?.totalLessons ?? 0;
     final int remainingLessons = (totalLessons - completedLessons).clamp(
       0,
       totalLessons,
     );
-    final String title = course?.courseTitle ?? 'Основы кыргызского языка';
+    final String title = course?.courseTitle ?? 'Курс не выбран';
     final String lessonId = course?.lastLessonId ?? '';
+    final String actionLabel = hasCourse
+        ? 'Продолжить обучение'
+        : 'Выбрать курс';
     return _SectionCard(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
       child: Column(
@@ -380,14 +384,23 @@ class _CurrentCourseCard extends StatelessWidget {
           Row(
             children: [
               Text(
-                '$completedLessons из $totalLessons уроков',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                hasCourse
+                    ? '$completedLessons из $totalLessons уроков'
+                    : 'Начните обучение с каталога',
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                ),
               ),
-              Spacer(),
-              Text(
-                '$remainingLessons урока осталось',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-              ),
+              const Spacer(),
+              if (hasCourse)
+                Text(
+                  '$remainingLessons ${_lessonWord(remainingLessons)} осталось',
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 12),
@@ -403,9 +416,7 @@ class _CurrentCourseCard extends StatelessWidget {
                       context.push(path);
                     },
               icon: const Icon(Icons.play_arrow_rounded, size: 20),
-              label: Text(
-                course == null ? 'Выбрать курс' : 'Продолжить обучение',
-              ),
+              label: Text(actionLabel),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.brandPrimary,
                 foregroundColor: Colors.white,
@@ -514,6 +525,16 @@ class _DailyGoalCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _lessonWord(int count) {
+  final int mod100 = count % 100;
+  if (mod100 >= 11 && mod100 <= 14) return 'уроков';
+  return switch (count % 10) {
+    1 => 'урок',
+    2 || 3 || 4 => 'урока',
+    _ => 'уроков',
+  };
 }
 
 class _LibraryShortcutCard extends StatelessWidget {
